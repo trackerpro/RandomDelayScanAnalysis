@@ -1,82 +1,72 @@
-##################################
-### Random Delay Scan Analysis ###
-##################################
+# Random Delay Scan Analysis 
 
-### CMSSW Setup:
+## CMSSW Setup:
 
-    ```sh
-    cmsrel CMSSW_12_0_3_patch1 ;
-    cd CMSSW_12_0_3_patch1/src ;
-    cmsenv;		      
-    git-cms-init; 
-    git clone git@github.com:trackerpro/RandomDelayScanAnalysis.git TrackerDAQAnalysis/RandomDelayScanAnalysis
-    scramv1 b -j 4;					 
-    ```
-### To run the TrackerDPGAnalyzer locally:
+```sh
+cmsrel CMSSW_12_0_3_patch1 ;
+cd CMSSW_12_0_3_patch1/src ;
+cmsenv;		      
+git-cms-init; 
+git clone git@github.com:trackerpro/RandomDelayScanAnalysis.git TrackerDAQAnalysis/RandomDelayScanAnalysis
+scramv1 b -j 4;					 
+```
 
-    ```sh 
-    cd  TrackerDAQAnalysis/RandomDelayScan/test/
-    cmsRun trackerdpganalysis_cfg.py delayStep=<int corresponding to the delay xml chosen>
-    ``` 
+## Run on t0streamer files
 
-### Run on t0streamer files
-
-    Example on how to run on a couple of input files
+* Example on how to run on a couple of input files
     
-    ```sh
-    cmsRun trackerdpganalysis_cfg.py isRawDAQFile=True globalTag=run3_data_express nThreads=2 inputDirectory=../crab/2021/ inputFiles=/store/t0streamer/Data/Express/000/346/446/run346446_ls0001_streamExpress_StorageManager.dat delayStep=0 triggerList="HLT_HcalNZS*","HLT_L1ETT_ZeroBias*","HLT_PixelClusters_WP1_ZeroBias*" maxEvents=100
-    cmsRun trackerdpganalysis_cfg.py isRawDAQFile=True globalTag=run3_data nThreads=2 inputDirectory=../crab/2021/ inputFiles=/store/t0streamer/Data/PhysicsMinimumBias0/000/346/446/run346446_ls0001_streamPhysicsMinimumBias0_StorageManager.dat triggerList="HLT_PixelClusters_WP2_ZeroBias*","HLT_L1ETT_ZeroBias*" maxEvents=100
-    ```
+```sh
+cmsRun trackerdpganalysis_cfg.py isRawDAQFile=True globalTag=run3_data_express nThreads=2 inputDirectory=../crab/2021/ inputFiles=/store/t0streamer/Data/Express/000/346/446/run346446_ls0001_streamExpress_StorageManager.dat delayStep=0 triggerList="HLT_HcalNZS*","HLT_L1ETT_ZeroBias*","HLT_PixelClusters_WP1_ZeroBias*" maxEvents=100
+cmsRun trackerdpganalysis_cfg.py isRawDAQFile=True globalTag=run3_data nThreads=2 inputDirectory=../crab/2021/ inputFiles=/store/t0streamer/Data/PhysicsMinimumBias0/000/346/446/run346446_ls0001_streamPhysicsMinimumBias0_StorageManager.dat triggerList="HLT_PixelClusters_WP2_ZeroBias*","HLT_L1ETT_ZeroBias*" maxEvents=100
+```
 
-    Trigger that can be requried depending on the output stream can be accessed via OMS for each run number. Above examples are taken for run 346446 taken in fall 2021 at Run3 commissioning startup.
+Trigger that can be requried depending on the output stream can be accessed via OMS for each run number. Above examples are taken for run 346446 taken in fall 2021 at Run3 commissioning startup.
 
-    Submit jobs via lxbatch (condorHT) on these streamer files are not published in crab:
+* Submit jobs via lxbatch (condorHT) on these streamer files are not published in crab:
 
-    ```sh
-    ```	
+```sh
+```	
 
-### Run on RAW files
+## Run on RAW files
     
-    Example on how to run on some input files. For Commissioning2021, the following queries to DBS can be performed:
+* Example on how to run on some input files. For Commissioning2021, the following queries to DBS can be performed:
     
-    ```sh
-     dasgoclient --query "dataset=/*MinimumBias*/*2021*/*RAW*"
-     dasgoclient --query "file dataset=/MinimumBias0/Commissioning2021-v1/RAW run=346446"
-     dasgoclient --query "site dataset=/MinimumBias0/Commissioning2021-v1/RAW"
-    ```
+```sh
+dasgoclient --query "dataset=/*MinimumBias*/*2021*/*RAW*"
+asgoclient --query "file dataset=/MinimumBias0/Commissioning2021-v1/RAW run=346446"
+asgoclient --query "site dataset=/MinimumBias0/Commissioning2021-v1/RAW"
+```
 
-    If files are on-disk, you can use the following commands:
+* if files are on-disk, you can use the following commands:
 
-    ```sh
-    cmsRun trackerdpganalysis_cfg.py isRawEDMFile=True globalTag=run3_data nThreads=2 inputDirectory=../crab/2021/ inputFiles=<file location> triggerList="HLT_PixelClusters_WP2_ZeroBias*","HLT_L1ETT_ZeroBias*" maxEvents=100
-    ```
+```sh
+cmsRun trackerdpganalysis_cfg.py isRawEDMFile=True globalTag=run3_data nThreads=2 inputDirectory=../crab/2021/ inputFiles=<file location> triggerList="HLT_PixelClusters_WP2_ZeroBias*","HLT_L1ETT_ZeroBias*" maxEvents=100
+```
 
-    Submit jobs via lxbatch (condorHT) on these streamer files are not published in crab:
+* Submit jobs via lxbatch (condorHT) on these streamer files are not published in crab:
 
 
-### Run on FEVT files
+## Run on FEVT files
     
-    Example on how to run on some input files. For Commissioning2021, the following queries to DBS can be performed:
+* Example on how to run on some input files. For Commissioning2021, the following queries to DBS can be performed:
 
-    ```sh
-     dasgoclient --query "file dataset=/ExpressPhysics/Commissioning2021-Express-v1/FEVT run=346446"
-     dasgoclient --query "site dataset=/ExpressPhysics/Commissioning2021-Express-v1/FEVT"
-    ```
+```sh
+dasgoclient --query "file dataset=/ExpressPhysics/Commissioning2021-Express-v1/FEVT run=346446"
+dasgoclient --query "site dataset=/ExpressPhysics/Commissioning2021-Express-v1/FEVT"
+```
 
-    If files are on-disk, you can use the following commands:
+* If files are on-disk, you can use the following commands:
 
-    ```sh
-    cmsRun trackerdpganalysis_cfg.py globalTag=run3_data_express nThreads=2 inputDirectory=../crab/2021/ inputFiles=/store/express/Commissioning2021/ExpressPhysics/FEVT/Express-v1/000/346/446/00000/0455c1c4-357f-434c-951f-ab6f2ba98683.root delayStep=0 triggerList="HLT_HcalNZS*","HLT_L1ETT_ZeroBias*","HLT_PixelClusters_WP1_ZeroBias*" maxEvents=100
-    ```
+```sh
+cmsRun trackerdpganalysis_cfg.py globalTag=run3_data_express nThreads=2 inputDirectory=../crab/2021/ inputFiles=/store/express/Commissioning2021/ExpressPhysics/FEVT/Express-v1/000/346/446/00000/0455c1c4-357f-434c-951f-ab6f2ba98683.root delayStep=0 triggerList="HLT_HcalNZS*","HLT_L1ETT_ZeroBias*","HLT_PixelClusters_WP1_ZeroBias*" maxEvents=100
+```
     
-    To run crab jobs: 
+* To run crab jobs: 
     
-    TrackerDAQAnalysis/RandomDelayScanAnalysis/crab/json*json = example of json file to select a particular run. it can be obtained via: ```sh dasgoclient --query "run,lumi dataset=/ExpressPhysics/Commissioning2021-Express-v1/FEVT run=346446" ```
-    TrackerDAQAnalysis/RandomDelayScanAnalysis/crab/crab_*py = example of json crab config to analyze the delay run
-
-
+TrackerDAQAnalysis/RandomDelayScanAnalysis/crab/json*json = example of json file to select a particular run. it can be obtained via: ```sh dasgoclient --query "run,lumi dataset=/ExpressPhysics/Commissioning2021-Express-v1/FEVT run=346446" ```
+TrackerDAQAnalysis/RandomDelayScanAnalysis/crab/crab_*py = example of json crab config to analyze the delay run
     
-### Event Skim:
+## Event Skim:
 
 Run Locally:
 
