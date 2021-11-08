@@ -26,8 +26,6 @@ class countEvents : public edm::EDFilter {
   virtual void endJob() override ;
  
  private:
- 
-  long int numberOfEvents_; 
 };
 
 #endif

@@ -10,7 +10,7 @@ config.General.transferOutputs = True
 
 config.JobType.pluginName       = 'Analysis'
 config.JobType.psetName         = '../../test/trackerdpganalysis_cfg.py'
-config.JobType.pyCfgParams      = ['nThreads=4','delayStep=0','globalTag=run3_data_express','inputDirectory=./','triggerList="HLT_HcalNZS*","HLT_L1ETT_ZeroBias*","HLT_PixelClusters_WP1_ZeroBias*"']
+config.JobType.pyCfgParams      = ['nThreads=4','delayStep=0','globalTag=run3_data_express','inputDirectory=./','triggerList=HLT_HcalNZS*,HLT_L1ETT_ZeroBias*,HLT_PixelClusters_WP1_ZeroBias*']
 config.JobType.outputFiles      = ['trackerDPG.root']
 config.JobType.numCores         = 4
 config.JobType.inputFiles       = ['TI_27-JAN-2010_2_delayStep_0.xml','TM_09-JUN-2009_1_delayStep_0.xml','TO_30-JUN-2009_1_delayStep_0.xml','TP_09-JUN-2009_1_delayStep_0.xml']

@@ -31,6 +31,9 @@ options.register ('inputDirectory',"",VarParsing.multiplicity.singleton,VarParsi
 options.register ('triggerList','',VarParsing.multiplicity.list,
                   VarParsing.varType.string,"List of HLT trigger paths to require")
 
+options.register ('eventRange',"",VarParsing.multiplicity.singleton,VarParsing.varType.string,
+                  '');
+
 options.parseArguments()
 
 ### start cmssw job
@@ -52,8 +55,8 @@ else:
                                 fileNames = cms.untracked.vstring(options.inputFiles))
 
 
-if options.jsonFile: ### to be checked / created by hand when the runs are take
-    process.source.lumisToProcess = LumiList.LumiList(filename = options.jsonFile).getVLuminosityBlockRange()
+if options.eventRange:
+    process.source.eventsToProcess = cms.untracked.VEventRange(options.eventRange);
 
 # Conditions (Global Tag is used here):
 process.load('Configuration.StandardSequences.FrontierConditions_GlobalTag_cff')
@@ -168,9 +171,15 @@ process.analysis = cms.EDAnalyzer('TrackerDpgAnalysis',
 if  options.isRawDAQFile or options.isRawEDMFile: 
     process.analysis.TracksLabel = cms.VInputTag(cms.InputTag("generalTracks"))
 
+if options.jsonFile: ### to be checked / created by hand when the runs are take
+    process.source.lumisToProcess = LumiList.LumiList(filename = options.jsonFile).getVLuminosityBlockRange()
+
 if options.inputDirectory != "":
     for string in range(len(process.analysis.DelayFileNames)) :
         process.analysis.DelayFileNames[string] = options.inputDirectory+"/"+process.analysis.DelayFileNames[string];
+    if options.jsonFile: ### to be checked / created by hand when the runs are take
+        process.source.lumisToProcess = LumiList.LumiList(filename = options.inputDirectory+"/"+options.jsonFile).getVLuminosityBlockRange()
+
 
 process.edTask = cms.Task()
 

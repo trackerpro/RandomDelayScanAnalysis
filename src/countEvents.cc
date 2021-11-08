@@ -2,7 +2,6 @@
 
 //! ctor
 countEvents::countEvents(const edm::ParameterSet& iConfig) {
-  numberOfEvents_ = 0;
 }
 
 // ----------------------------------------------------------------
@@ -16,12 +15,11 @@ countEvents::~countEvents()
 
 //! loop over the reco particles and count leptons
 bool countEvents::filter(edm::Event& iEvent, const edm::EventSetup& iSetup) {
-  numberOfEvents_++;
+  std::cout<<"countEvents::filter,"<<iEvent.eventAuxiliary().run()<<","<<iEvent.eventAuxiliary().luminosityBlock()<<","<<iEvent.eventAuxiliary().event()<<std::endl;
   return true;
 }
 
 void countEvents::endJob() {
-  std::cout<<"Number of events = "<<numberOfEvents_<<std::endl;
 }
 
 DEFINE_FWK_MODULE(countEvents);
