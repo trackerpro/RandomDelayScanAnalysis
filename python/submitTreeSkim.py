@@ -51,7 +51,7 @@ if __name__ == '__main__':
    
    ## make the file list ... typically all the files of a given run
    fileList = [];
-   os.system("/usr/bin/eos find "+options.inputDIR+" -name \"*.root\" > file_temp.txt");
+   os.system("find "+options.inputDIR+" -name \"*.root\" > file_temp.txt");
    fs = open("file_temp.txt","r");
    for line in fs:
       if line == "": continue;
@@ -78,8 +78,7 @@ if __name__ == '__main__':
    #### create one macro per job
    for ijob in range(njobs):
 
-      os.system("mkdir -p "+options.jobDIR+"/"+"job_"+str(ijob));
-      jobfilelist = open('%s/%s/inputfile.list'%(options.jobDIR,"job_"+str(ijob)),'w')
+      jobfilelist = open('%s/inputfile_job_%d.list'%(options.jobDIR,ijob),'w')
 
       for ifile in range(ijob*options.filesPerJob,min(len(fileList),ijob*options.filesPerJob+options.filesPerJob)):         
          nameList = fileList[ifile].split("/");
@@ -92,21 +91,21 @@ if __name__ == '__main__':
          jobfilelist.write("%s \n"%(fileName));
       
       ## write job sh file                                                                                                                                             
-      jobmacro = open('%s/%s/job.C'%(options.jobDIR,"job_"+str(ijob)),'w')
+      jobmacro = open('%s/job_%d.C'%(options.jobDIR,ijob),'w')
       jobmacro.write("{\n");
       jobmacro.write("gROOT->ProcessLine(\".L "+currentDIR+"/../macros/makeSkimTrees/skimTrees.C\");\n");      
-      jobmacro.write("gROOT->ProcessLine(\""+"skimTrees(\\\"inputfile.list\\\",\\\"%s\\\",%i)\");\n"%(options.outputBaseName+"_"+str(ijob)+".root",isBOn));
+      jobmacro.write("gROOT->ProcessLine(\""+"skimTrees(\\\"inputfile_job_%d.list\\\",\\\"%s\\\",%i)\");\n"%(ijob,options.outputBaseName+"_"+str(ijob)+".root",isBOn));
       jobmacro.write("}\n");
       jobmacro.close();
 
-      jobscript.write("if [ $1 -eq "+str(ijob-1)+" ]; then\n")
+      jobscript.write("if [ $1 -eq "+str(ijob)+" ]; then\n")
       for ifile in range(ijob*options.filesPerJob,min(len(fileList),ijob*options.filesPerJob+options.filesPerJob)):         
-         jobscript.write("xrdcp -f root://eoscms.cern.ch//"+fileList[ifile]+" ./\n")
-      jobscript.write('scp '+currentDIR+'/%s/%s/job.C ./ \n'%(options.jobDIR,"JOB_"+str(ijob)))
-      jobscript.write('scp '+currentDIR+'/%s/%s/inputfile.list ./ \n'%(options.jobDIR,"JOB_"+str(ijob)))
-      jobscript.write('root -l -b -q job.C\n');
-      jobscript.write("/usr/bin/eos mkdir -p "+options.outputDIR+"\n");
-      jobscript.write("xrdcp -f "+options.outputBaseName+"_"+str(ijob)+".root root://eoscms.cern.ch//eos/cms"+options.outputDIR+"/");       
+         jobscript.write("xrdcp -f "+fileList[ifile]+" ./\n")
+      jobscript.write('scp '+currentDIR+'/%s/job_%d.C ./ \n'%(options.jobDIR,ijob))
+      jobscript.write('scp '+currentDIR+'/%s/inputfile_job_%d.list ./ \n'%(options.jobDIR,ijob))
+      jobscript.write('root -l -b -q job_%d.C\n'%(ijob));
+      jobscript.write("mkdir -p "+options.outputDIR+"\n");
+      jobscript.write("xrdcp -f "+options.outputBaseName+"_"+str(ijob)+".root "+options.outputDIR+"/\n");       
       jobscript.write("fi\n");
 
    jobscript.write("\n");
@@ -116,15 +115,15 @@ if __name__ == '__main__':
    condor_job = open("%s/condor_job.sub"%(options.jobDIR),"w");
    condor_job.write("executable = %s/%s/condor_job.sh\n"%(currentDIR,options.jobDIR));
    condor_job.write("arguments = $(ProcId)\n");
-   condor_job.write("output = %s/%s/%s/condor_job_$(ProcId).out\n"%(currentDIR,options.jobDIR,"job_"+str(ijob)));
-   condor_job.write("error  = %s/%s/%s/condor_job_$(ProcId).err\n"%(currentDIR,options.jobDIR,"job_"+str(ijob)));
-   condor_job.write("log    = %s/%s/%s/condor_job_$(ProcId).log\n"%(currentDIR,options.jobDIR,"job_"+str(ijob)));
+   condor_job.write("output = %s/%s/condor_job_$(ProcId).out\n"%(currentDIR,options.jobDIR));
+   condor_job.write("error  = %s/%s/condor_job_$(ProcId).err\n"%(currentDIR,options.jobDIR));
+   condor_job.write("log    = %s/%s/condor_job_$(ProcId).log\n"%(currentDIR,options.jobDIR));
    condor_job.write("transfer_output_files=\"\"\n");
    condor_job.write("when_to_transfer_output = ON_EXIT\n");
    condor_job.write("should_transfer_files   = YES\n");
    condor_job.write("universe = vanilla\n");
    condor_job.write("+JobFlavour = \""+options.queque+"\"\n");
-   condor_job.write("queue "+str(ijob)+"\n");
+   condor_job.write("queue "+str(njobs)+"\n");
    condor_job.close();
       
    if options.submit:

@@ -1,7 +1,7 @@
 
-void makePSUDetIdMap(string inputFileWithReadOutMap = "$CMSSW_BASE/src/TrackerDAQAnalysis/RandomDelayScan/data/readoutMap.root",
+void makePSUDetIdMap(string inputFileWithReadOutMap = "$CMSSW_BASE/src/TrackerDAQAnalysis/RandomDelayScanAnalysis/data/readoutMap.root",
 		     string PSUDCUMap      = "../../data/PSUmapping.csv",
-		     string outputFileName = "$CMSSW_BASE/src/TrackerDAQAnalysis/RandomDelayScan/data/readoutMapWithPSU.root"){
+		     string outputFileName = "$CMSSW_BASE/src/TrackerDAQAnalysis/RandomDelayScanAnalysis/data/readoutMapWithPSU.root"){
 
 
   TFile* inputReadoutMap = TFile::Open(inputFileWithReadOutMap.c_str(),"READ");

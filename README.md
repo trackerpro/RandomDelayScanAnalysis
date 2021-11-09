@@ -88,7 +88,7 @@ skimTrees(<input file>, <outputfile>, <isBon = rule the selection string written
     
 ```sh
 python scripts/submitTreeSkim.py  --inputDIR <directory with all the files for a given run, produced by crab is ok> --outputDIR <output location on Cern EOS> --outputBaseName <base name for the output root file> --isBOn (in case you want to apply bOn selections) --jobDIR <JOBDIR> --queque <QUEQUE> --submit
-    ```
+```
 
 ## Copy from EOS to a local machine:
 
@@ -100,13 +100,22 @@ python3 scripts/copyFilesEOS.py --inputDIR <directory where skimmed trees are lo
     
 ## Merge trees belonging to a given run:
 
-* Script to automatically merge files into a single ROOT file
+* Script to automatically merge files into a single ROOT file. The reference file should be one of the files that is going to be merged, from which the readout map is taken.
 
 ```sh
 cd macros/makeMergeTrees;
 root -l;
 .L TreeMerge.C;
 TreeMerge(<destination file>, < one reference to take the readoutMap>, <directory where all the single files are located>, <if you want to cancel single inputs after merging)
+```
+
+## Build readoutmap with PSU information
+
+```sh
+cd macros/makePSUMap;
+root -l;
+.L makePSUDetIdMap.C;
+makePSUDetIdMap("<input merged file from which take the readoutmap>", "<PSU-DCU association file>", "<output readout map>");
 ```
 
 ## Fit Cluster Charge or S/N for each detId:
@@ -140,8 +149,7 @@ cd macros/makeDelayAnalysis
 root -l;
 .L delayValidationPerModule.C;
 delayValidationPerModule(<input directory where all the merged files for different runs are located>,<no correction file stored in ../data/nocorrection.root>,<postfix: substring to be find to be sure to run on the merged files>, <observable name (branch name)>, <outputDIR: name and path of the output directory>,<saveMeanCanvas: store some gaussian fits of mean charge vs delay>, <saveMPVCanvas: save MPV fit canvases vs delay >, <saveCorrectionTree: to save the delay per channel in a TTree format. Can be analyzed then through the tkCommissioner>
-```sh
-
+```
 
 ### Compare different runs:
 

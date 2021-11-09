@@ -17,8 +17,8 @@ using namespace std;
 // parametrize profile with a gaussian shape
 static bool isGaussian = true;
 // reduce the number of events by
-static int  reductionFactor = 2;
-
+static int  reductionFactor = 1;
+static int  ntoys = 100;
 static TFile*   outputFitFile = NULL;
 static TCanvas* outputCanvasFit = NULL;
 
@@ -44,6 +44,7 @@ int makeLandauGausFit(TH1F* histoToFit, TH1F* histoToFill, string subdetector, c
   RooArgList* vars   = new RooArgList(*charge);
   // covert histogram in a RooDataHist                                                                                                                                                               
   RooDataHist* chargeDistribution = new RooDataHist(histoToFit->GetName(),"",*vars,histoToFit);
+
   // Build a Landau PDF                                                                                                                                                                              
   RooRealVar*  mean_landau  = new RooRealVar("mean_landau","",histoToFit->GetMean(),1.,150);
   RooRealVar*  sigma_landau = new RooRealVar("sigma_landau","",histoToFit->GetRMS(),1.,100);
@@ -72,7 +73,21 @@ int makeLandauGausFit(TH1F* histoToFit, TH1F* histoToFill, string subdetector, c
   }
   else{    
     histoToFill->SetBinContent(histoToFill->FindBin(delay),fitfunc->GetMaximumX(xMin,xMax));
-    histoToFill->SetBinError(histoToFill->FindBin(delay),mean_landau->getError());
+    // use toys for uncertainty on the maximum
+    TRandom3 rand(1234);
+    rand.SetSeed(0);
+    RooArgSet* par_pdf  = totalPdf->getParameters(RooArgSet(*charge)) ;
+    vector<float> maximum_values; 
+    for(size_t itoy = 1; itoy < ntoys; itoy++){
+      RooArgList par_toy = fitResult->randomizePars();
+      *par_pdf = par_toy;
+      TF1* fit_toy = totalPdf->asTF(*charge,par_toy,*charge);      
+      maximum_values.push_back(fit_toy->GetMaximumX(xMin,xMax));
+    }
+    sort(maximum_values.begin(),maximum_values.end());    
+    pars = fitResult->floatParsFinal();
+    *par_pdf = pars;
+    histoToFill->SetBinError(histoToFill->FindBin(delay),(maximum_values.at(int(0.84*maximum_values.size()))-maximum_values.at(int(0.16*maximum_values.size()))));
   }
   
   // plot to store in a root file                          
@@ -304,8 +319,8 @@ void LayerPlots(TTree* tree,
   
   std::cout<<std::endl;
   std::cout<<"Loop on events terminated"<<std::endl;
-
   std::cout<<"Build the mean and MPV distributions asaf of delay "<<endl;
+
   long int iBadChannelFit = 0;
   for(auto imap : TIBlayers){ // loop on the different layer
     if(TIBlayersMean[imap.first] == 0 or TIBlayersMean[imap.first] == NULL)
@@ -314,18 +329,17 @@ void LayerPlots(TTree* tree,
     if(TIBlayersMPV[imap.first] == 0 or TIBlayersMPV[imap.first] == NULL)
       TIBlayersMPV[imap.first] = new TH1F(Form("TIB_layer_%d_mpv",imap.first),"",delayBins.size()-1,&delayBins[0]);
     TH1::AddDirectory(kFALSE);
-    
     for(auto idelay : imap.second){
       // mean value
       TIBlayersMean[imap.first]->SetBinContent(TIBlayersMean[imap.first]->FindBin(idelay.first),idelay.second->GetMean());
-      TIBlayersMean[imap.first]->SetBinError(TIBlayersMean[imap.first]->FindBin(idelay.first),idelay.second->GetMeanError());
-      
+      TIBlayersMean[imap.first]->SetBinError(TIBlayersMean[imap.first]->FindBin(idelay.first),idelay.second->GetMeanError());      
       int status = makeLandauGausFit(idelay.second,TIBlayersMPV[imap.first],"TIB",idelay.first,observable,outputDIR);
       if(status != 0) iBadChannelFit++;            
       
     }
   }
   std::cout<<"Bad channel fit from Landau+Gaus fit in TIB layers "<<iBadChannelFit<<" over "<<TIBlayers.size()*TIBlayers[1].size()<<std::endl;  
+
   iBadChannelFit = 0;
   for(auto imap : TOBlayers){ // loop on the different layer
     if(TOBlayersMean[imap.first] == 0 or TOBlayersMean[imap.first] == NULL)
@@ -333,18 +347,17 @@ void LayerPlots(TTree* tree,
     TH1::AddDirectory(kFALSE);
     if(TOBlayersMPV[imap.first] == 0 or TOBlayersMPV[imap.first] == NULL)
       TOBlayersMPV[imap.first] = new TH1F(Form("TOB_layer_%d_mpv",imap.first),"",delayBins.size()-1,&delayBins[0]);
-    TH1::AddDirectory(kFALSE);
-    
+    TH1::AddDirectory(kFALSE);    
     for(auto idelay : imap.second){
       // mean value
       TOBlayersMean[imap.first]->SetBinContent(TOBlayersMean[imap.first]->FindBin(idelay.first),idelay.second->GetMean());
       TOBlayersMean[imap.first]->SetBinError(TOBlayersMean[imap.first]->FindBin(idelay.first),idelay.second->GetMeanError());
-
       int status = makeLandauGausFit(idelay.second,TOBlayersMPV[imap.first],"TOB",idelay.first,observable,outputDIR);
       if(status != 0) iBadChannelFit++;      
     }
   }
   std::cout<<"Bad channel fit from Landau+Gaus fit in TOB layers "<<iBadChannelFit<<" over "<<TOBlayers.size()*TOBlayers[1].size()<<std::endl;  
+
   iBadChannelFit = 0;
   for(auto imap : TIDlayers){ // loop on the different layer
     if(TIDlayersMean[imap.first] == 0 or TIDlayersMean[imap.first] == NULL)
@@ -358,7 +371,6 @@ void LayerPlots(TTree* tree,
       // mean value
       TIDlayersMean[imap.first]->SetBinContent(TIDlayersMean[imap.first]->FindBin(idelay.first),idelay.second->GetMean());
       TIDlayersMean[imap.first]->SetBinError(TIDlayersMean[imap.first]->FindBin(idelay.first),idelay.second->GetMeanError());
-
       int status = makeLandauGausFit(idelay.second,TIDlayersMPV[imap.first],"TID",idelay.first,observable,outputDIR);
       if(status != 0) iBadChannelFit++;      
     }
@@ -446,7 +458,6 @@ void LayerPlots(TTree* tree,
   std::cout<<"Bad channel fit from Landau+Gaus fit in TECMt layers "<<iBadChannelFit<<" over "<<TECMtlayers.size()*TECMtlayers[1].size()<<std::endl;  
 
   // correct profiles and fit them with a gaussian
-  std::cout<<"Analyze profiles TIB mean"<<std::endl;
   long int badFits = 0;
   for(auto iprof : TIBlayersMean){
     TFitResultPtr result = fitHistogram(iprof.second,isGaussian,"Q");
@@ -457,7 +468,7 @@ void LayerPlots(TTree* tree,
     }
   }
   std::cout<<"TIB Mean bad gaussian fits "<<badFits<<std::endl;
-  std::cout<<"Analyze TOB profiles mean"<<std::endl;
+
   badFits = 0;
   for(auto iprof : TOBlayersMean){
     TFitResultPtr result = fitHistogram(iprof.second,isGaussian,"Q");
@@ -469,7 +480,6 @@ void LayerPlots(TTree* tree,
   }
   std::cout<<"TOB Mean bad gaussian fits "<<badFits<<std::endl;
 
-  std::cout<<"Analyze TID profiles mean"<<std::endl;
   badFits = 0;
   for(auto iprof : TIDlayersMean){
     TFitResultPtr result = fitHistogram(iprof.second,isGaussian,"Q");
@@ -481,7 +491,6 @@ void LayerPlots(TTree* tree,
   }
   std::cout<<"TID Mean bad gaussian fits "<<badFits<<std::endl;
 
-  std::cout<<"Analyze TECPT profiles mean"<<std::endl;
   badFits = 0;
   for(auto iprof : TECPTlayersMean){
     TFitResultPtr result = fitHistogram(iprof.second,isGaussian,"Q");
@@ -493,7 +502,6 @@ void LayerPlots(TTree* tree,
   }
   std::cout<<"TECPT Mean bad gaussian fits "<<badFits<<std::endl;
 
-  std::cout<<"Analyze TECPt profiles mean"<<std::endl;
   badFits = 0;
   for(auto iprof : TECPtlayersMean){
     TFitResultPtr result = fitHistogram(iprof.second,isGaussian,"Q");
@@ -505,7 +513,6 @@ void LayerPlots(TTree* tree,
   }
   std::cout<<"TECPt Mean bad gaussian fits "<<badFits<<std::endl;
 
-  std::cout<<"Analyze TECMT profiles mean"<<std::endl;
   badFits = 0;
   for(auto iprof : TECMTlayersMean){
     TFitResultPtr result = fitHistogram(iprof.second,isGaussian,"Q");
@@ -517,7 +524,6 @@ void LayerPlots(TTree* tree,
   }
   std::cout<<"TECMT Mean bad gaussian fits "<<badFits<<std::endl;
 
-  std::cout<<"Analyze TECMt profiles mean"<<std::endl;
   badFits = 0;
   for(auto iprof : TECMtlayersMean){
     TFitResultPtr result = fitHistogram(iprof.second,isGaussian,"Q");
@@ -530,7 +536,6 @@ void LayerPlots(TTree* tree,
   std::cout<<"TECMt Mean bad gaussian fits "<<badFits<<std::endl;
 
   // correct profiles and fit them with a gaussian
-  std::cout<<"Analyze TIB profiles mpv"<<std::endl;
   badFits = 0;
   for(auto iprof : TIBlayersMPV){
     TFitResultPtr result = fitHistogram(iprof.second,isGaussian,"Q");
@@ -542,7 +547,6 @@ void LayerPlots(TTree* tree,
   }
   std::cout<<"TIB MPV bad gaussian fits "<<badFits<<std::endl;
 
-  std::cout<<"Analyze TOB profiles mpv"<<std::endl;
   badFits = 0;
   for(auto iprof : TOBlayersMPV){
     TFitResultPtr result = fitHistogram(iprof.second,isGaussian,"Q");
@@ -554,7 +558,6 @@ void LayerPlots(TTree* tree,
   }
   std::cout<<"TOB MPV bad gaussian fits "<<badFits<<std::endl;
 
-  std::cout<<"Analyze TID profiles mpv"<<std::endl;
   badFits = 0;
   for(auto iprof : TIDlayersMPV){
     TFitResultPtr result = fitHistogram(iprof.second,isGaussian,"Q");
@@ -566,7 +569,6 @@ void LayerPlots(TTree* tree,
   }
   std::cout<<"TID MPV bad gaussian fits "<<badFits<<std::endl;
 
-  std::cout<<"Analyze TECPT profiles mpv"<<std::endl;
   badFits = 0;
   for(auto iprof : TECPTlayersMPV){
     TFitResultPtr result = fitHistogram(iprof.second,isGaussian,"Q");
@@ -578,7 +580,6 @@ void LayerPlots(TTree* tree,
   }
   std::cout<<"TECPT MPV bad gaussian fits "<<badFits<<std::endl;
 
-  std::cout<<"Analyze TECPt profiles mpv"<<std::endl;
   badFits = 0;
   for(auto iprof : TECPtlayersMPV){
     TFitResultPtr result = fitHistogram(iprof.second,isGaussian,"Q");
@@ -590,7 +591,6 @@ void LayerPlots(TTree* tree,
   }
   std::cout<<"TECPt MPV bad gaussian fits "<<badFits<<std::endl;
 
-  std::cout<<"Analyze TECMT profiles mpv"<<std::endl;
   badFits = 0;
   for(auto iprof : TECMTlayersMPV){
     TFitResultPtr result = fitHistogram(iprof.second,isGaussian,"Q");
@@ -602,7 +602,6 @@ void LayerPlots(TTree* tree,
   }
   std::cout<<"TECMT MPV bad gaussian fits "<<badFits<<std::endl;
 
-  std::cout<<"Analyze TECMt profiles mpv"<<std::endl;
   badFits = 0;
   for(auto iprof : TECMtlayersMPV){
     TFitResultPtr result = fitHistogram(iprof.second,isGaussian,"Q");
@@ -678,7 +677,7 @@ void RPlots(TTree* tree,
 
 
   std::cout<<"######################################################"<<std::endl;
-  std::cout << "Preparing Ring plot for the fifferent subdetectors "<< std::endl; 
+  std::cout << "Preparing Ring plot for the different subdetectors "<< std::endl; 
   std::cout<<"######################################################"<<std::endl;
 
   cout<<"tree set branch status "<<endl;
@@ -746,7 +745,7 @@ void RPlots(TTree* tree,
 
     if(subdetid == 3){
       int ring = int((R-TIBRing.rMin)/((TIBRing.rMax-TIBRing.rMin)/TIBRing.nDivision))+1;   
-      if(TIBrs[ring][round((delay-correction)*10)/10] == 0 or TIBrs[ring][round((delay-correction)*10)/10] == NULL)      {
+      if(TIBrs[ring][round((delay-correction)*10)/10] == 0 or TIBrs[ring][round((delay-correction)*10)/10] == NULL){
 	TIBrs[ring][round((delay-correction)*10)/10]= new TH1F(Form("TIB_ring_%d_delay_%.1f",ring,delay-correction),"",nBinsY,yMin,yMax);      
       }
       TIBrs[ring][round((delay-correction)*10)/10]->Fill(value);
@@ -797,6 +796,7 @@ void RPlots(TTree* tree,
     }
   }
 
+  std::cout<<endl;
   std::cout<<"Build the mean and MPV distributions asaf of delay "<<endl;
   long int iBadChannelFit = 0;
   for(auto imap : TIBrs){ // loop on the different layer                                                                                                                     
@@ -806,7 +806,7 @@ void RPlots(TTree* tree,
     if(TIBrsMPV[imap.first] == 0 or TIBrsMPV[imap.first] == NULL)
       TIBrsMPV[imap.first] = new TH1F(Form("TIB_ring_%d_mpv",imap.first),"",delayBins.size()-1,&delayBins[0]);
     TH1::AddDirectory(kFALSE);
-    
+
     for(auto idelay : imap.second){
       // mean value                                                                                                                                                             
       TIBrsMean[imap.first]->SetBinContent(TIBrsMean[imap.first]->FindBin(idelay.first),idelay.second->GetMean());
@@ -944,7 +944,6 @@ void RPlots(TTree* tree,
   std::cout<<"Loop on events terminated"<<std::endl;
 
   // correct profiles and fit them with a gaussian
-  std::cout<<"Analyze profiles TIB mean layers"<<std::endl;
   long int badFits = 0;
   for(auto iprof : TIBrsMean){
     TFitResultPtr result = fitHistogram(iprof.second,isGaussian,"Q");
@@ -955,7 +954,6 @@ void RPlots(TTree* tree,
     }
   }
   std::cout<<"TIB Mean bad gaussian fits "<<badFits<<std::endl;
-  std::cout<<"Analyze TOB profiles mean layers"<<std::endl;
   badFits = 0;
   for(auto iprof : TOBrsMean){
     TFitResultPtr result = fitHistogram(iprof.second,isGaussian,"Q");
@@ -966,8 +964,6 @@ void RPlots(TTree* tree,
     }
   }
   std::cout<<"TOB Mean bad gaussian fits "<<badFits<<std::endl;
-
-  std::cout<<"Analyze TID profiles mean layers"<<std::endl;
   badFits = 0;
   for(auto iprof : TIDrsMean){
     TFitResultPtr result = fitHistogram(iprof.second,isGaussian,"Q");
@@ -979,7 +975,6 @@ void RPlots(TTree* tree,
   }
   std::cout<<"TID Mean bad gaussian fits "<<badFits<<std::endl;
 
-  std::cout<<"Analyze TECPT profiles mean layers"<<std::endl;
   badFits = 0;
   for(auto iprof : TECPTrsMean){
     TFitResultPtr result = fitHistogram(iprof.second,isGaussian,"Q");
@@ -991,7 +986,6 @@ void RPlots(TTree* tree,
   }
   std::cout<<"TECPT Mean bad gaussian fits "<<badFits<<std::endl;
 
-  std::cout<<"Analyze TECPt profiles mean layers"<<std::endl;
   badFits = 0;
   for(auto iprof : TECPtrsMean){
     TFitResultPtr result = fitHistogram(iprof.second,isGaussian,"Q");
@@ -1003,7 +997,6 @@ void RPlots(TTree* tree,
   }
   std::cout<<"TECPt Mean bad gaussian fits "<<badFits<<std::endl;
 
-  std::cout<<"Analyze TECMT profiles mean layers"<<std::endl;
   badFits = 0;
   for(auto iprof : TECMTrsMean){
     TFitResultPtr result = fitHistogram(iprof.second,isGaussian,"Q");
@@ -1015,7 +1008,6 @@ void RPlots(TTree* tree,
   }
   std::cout<<"TECMT Mean bad gaussian fits "<<badFits<<std::endl;
 
-  std::cout<<"Analyze TECMt profiles mean layers"<<std::endl;
   badFits = 0;
   for(auto iprof : TECMtrsMean){
     TFitResultPtr result = fitHistogram(iprof.second,isGaussian,"Q");
@@ -1028,7 +1020,6 @@ void RPlots(TTree* tree,
   std::cout<<"TECMt Mean bad gaussian fits "<<badFits<<std::endl;
 
   // correct profiles and fit them with a gaussian
-  std::cout<<"Analyze TIB profiles mpv layers"<<std::endl;
   badFits = 0;
   for(auto iprof : TIBrsMPV){
     TFitResultPtr result = fitHistogram(iprof.second,isGaussian,"Q");
@@ -1040,7 +1031,6 @@ void RPlots(TTree* tree,
   }
   std::cout<<"TIB MPV bad gaussian fits "<<badFits<<std::endl;
 
-  std::cout<<"Analyze TOB profiles mpv layers"<<std::endl;
   badFits = 0;
   for(auto iprof : TOBrsMPV){
     TFitResultPtr result = fitHistogram(iprof.second,isGaussian,"Q");
@@ -1064,7 +1054,6 @@ void RPlots(TTree* tree,
   }
   std::cout<<"TID MPV bad gaussian fits "<<badFits<<std::endl;
 
-  std::cout<<"Analyze TECPT profiles mpv layers"<<std::endl;
   badFits = 0;
   for(auto iprof : TECPTrsMPV){
     TFitResultPtr result = fitHistogram(iprof.second,isGaussian,"Q");
@@ -1076,7 +1065,6 @@ void RPlots(TTree* tree,
   }
   std::cout<<"TECPT MPV bad gaussian fits "<<badFits<<std::endl;
 
-  std::cout<<"Analyze TECPt profiles mpv layers"<<std::endl;
   badFits = 0;
   for(auto iprof : TECPtrsMPV){
     TFitResultPtr result = fitHistogram(iprof.second,isGaussian,"Q");
@@ -1088,7 +1076,6 @@ void RPlots(TTree* tree,
   }
   std::cout<<"TECPt MPV bad gaussian fits "<<badFits<<std::endl;
 
-  std::cout<<"Analyze TECMT profiles mpv layers"<<std::endl;
   badFits = 0;
   for(auto iprof : TECMTrsMPV){
     TFitResultPtr result = fitHistogram(iprof.second,isGaussian,"Q");
@@ -1100,7 +1087,6 @@ void RPlots(TTree* tree,
   }
   std::cout<<"TECMT MPV bad gaussian fits "<<badFits<<std::endl;
 
-  std::cout<<"Analyze TECMt profiles mpv layers"<<std::endl;
   badFits = 0;
   for(auto iprof : TECMtrsMPV){
     TFitResultPtr result = fitHistogram(iprof.second,isGaussian,"Q");
@@ -1120,7 +1106,7 @@ void RPlots(TTree* tree,
 
 /// main function that run the analysis
 void delayValidation(string file0,  // inputfile
-		     string file1 = "nocorrection.root",  // possible file with correction
+		     string file1 = "../../data/nocorrection.root",  // possible file with correction
 		     string observable   = "maxCharge",   // observable to be considered: maxCharge, S/N ..etc
 		     bool plotPartitions = true, // best delay setting in each partition 
 		     bool plotLayer      = true, // best delay setting per layer
@@ -1290,7 +1276,7 @@ void delayValidation(string file0,  // inputfile
     alllayersMPV.clear();
     
   }
-
+  
   // Per rings
   if(plotSlices){
 
@@ -1425,7 +1411,7 @@ void delayValidation(string file0,  // inputfile
     
     // cumulate all rings
     RPlots(clusters,readoutMap,delayCorrections,observable,outputDIR);
-        
+
     // create the plots per partition
     std::vector<TH1F* > allPartitionMean;
     for(auto tib : TIBrsMean)
@@ -1507,7 +1493,7 @@ void delayValidation(string file0,  // inputfile
     allPartitionMean.clear();
     allPartitionMPV.clear();
   } 
-
+  
   outputFitFile->Close();
 }
 

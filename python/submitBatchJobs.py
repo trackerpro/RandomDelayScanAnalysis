@@ -89,9 +89,9 @@ if __name__ == '__main__':
           njobs = njobs + 1;
           if len(file_list) <= njobs:
             file_list.append([]);
-            file_list[njobs].append(filename);
+            file_list[njobs].append("file:"+filename);
           else:        
-            file_list[njobs].append(filename);
+            file_list[njobs].append("file:"+filename);
         event_counter = event_counter + 1;
 
       if ifile == len(listOfFiles)-1 and event_counter % options.eventsPerJob != 0:
@@ -184,7 +184,7 @@ if __name__ == '__main__':
   condor_job.write("should_transfer_files   = YES\n");
   condor_job.write("universe = vanilla\n");
   condor_job.write("+JobFlavour = \""+options.queque+"\"\n");
-  condor_job.write("queue "+str(njobs)+"\n");
+  condor_job.write("queue "+str(njobs-1)+"\n");
   condor_job.close();
       
   if options.submit:

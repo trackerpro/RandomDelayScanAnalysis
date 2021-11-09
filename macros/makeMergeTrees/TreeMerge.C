@@ -1,10 +1,14 @@
 // Merge all the trees beloging to a delay setting: destination = merged file, reference is a single to take the delay map, sources are files to be merged
-void TreeMerge(string destination, string reference, string inputPath, bool cancelInputFiles = false) {
+void TreeMerge(string destinationFile, string referenceFile, string inputDirectoryPath, string grepNameDir = "", bool cancelInputFiles = false, int numberOfThreads = 2) {
 
-  system(("rm "+destination).c_str());
+  system(("rm -rf "+destinationFile).c_str());
 
   // make list of all inputFIles before creting the merge oen
-  system(("ls "+inputPath+" | grep root > file.temp").c_str());
+  if(not grepNameDir.empty())
+    system(("find "+inputDirectoryPath+" | grep root | grep "+grepNameDir+" > file.temp").c_str());
+  else
+    system(("find "+inputDirectoryPath+" | grep root > file.temp").c_str());
+
   ifstream infile;
   string line;
   vector<string> fileList;
@@ -19,36 +23,42 @@ void TreeMerge(string destination, string reference, string inputPath, bool canc
   system("rm file.temp");
 
   // make hadd from a command line
-  gSystem->Exec(Form("hadd -k -f %s %s/*root",destination.c_str(),inputPath.c_str()));
+  string inputFiles;
+  for(auto file : fileList)
+    inputFiles += file+" ";
+  cout<<inputFiles<<endl;
+  gSystem->Exec(Form("hadd -j %d -f %s %s",numberOfThreads,destinationFile.c_str(),inputFiles.c_str()));
 
+  
   std::cout << "Reindexing the element of the merged tree..."  << std::endl;
-  TFile* f = TFile::Open(destination.c_str(),"update");
+  TFile* f = TFile::Open(destinationFile.c_str(),"update");
+  TFile* f2 = TFile::Open(referenceFile.c_str());
+  TTree* tree = (TTree*) f2->FindObjectAny("psumap");
 
-  TFile* f2 = TFile::Open(reference.c_str());
-  TTree* tree = (TTree*)f2->FindObjectAny("psumap");
+  TTree *newtree = NULL;
   if(tree == 0 or tree == NULL){
-    cout<<"[TreeMerge] no psumap file --> stop here"<<endl;
-    return;
+    cout<<"[TreeMerge] no psumap file --> please check"<<endl;
   }
-
-  f->cd();
-  TTree *newtree = tree->CloneTree();
-  newtree->BuildIndex("dcuId"); // deti-id index
-  newtree->Write("psumap",TObject::kOverwrite);
+  else{
+    f->cd();
+    newtree = tree->CloneTree();
+    newtree->BuildIndex("dcuId"); // deti-id index
+    newtree->Write("psumap",TObject::kOverwrite);
+  }
 
   // Look at the redoutMap
   tree = (TTree*)f2->FindObjectAny("readoutMap");
   if(tree == 0 or tree == NULL){
-    cout<<"[TreeMerge] no readoutMap file --> stop here"<<endl;
-    return;
+    cout<<"[TreeMerge] no readoutMap file --> please check"<<endl;
   }
-  
-  f->cd();
-  newtree = tree->CloneTree();
-  newtree->BuildIndex("detid"); // det-id index
-  newtree->Write("readoutMap",TObject::kOverwrite);
-  f2->Close();
-  
+  else{  
+    f->cd();
+    newtree = tree->CloneTree();
+    newtree->BuildIndex("detid"); // det-id index
+    newtree->Write("readoutMap",TObject::kOverwrite);
+    f2->Close();
+  }
+
   //close
   std::cout << "Saving merged file." << std::endl;
   f->Write();
@@ -57,8 +67,8 @@ void TreeMerge(string destination, string reference, string inputPath, bool canc
   //cancel all the single files, keeping only the unmerged one
   if(cancelInputFiles){
     for(auto fileName : fileList){
-      cout<<"rm "+inputPath+"/"+fileName<<endl;
-      system(("rm "+inputPath+"/"+fileName).c_str());
+      cout<<"rm "+inputDirectoryPath+"/"+fileName<<endl;
+      system(("rm "+inputDirectoryPath+"/"+fileName).c_str());
     }
   }
 }

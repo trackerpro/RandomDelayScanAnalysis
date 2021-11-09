@@ -401,7 +401,7 @@ void plotMaxima(TCanvas* canvas, const std::vector<TProfile*> & curves, string o
   graph->Draw();
   CMS_lumi(canvas,"");
   graph->SetFillColor(kGreen+1);
-  std::auto_ptr<TF1> funz (new TF1("funz","0",0,graph->GetBinLowEdge(graph->GetNbinsX()+1)));
+  std::unique_ptr<TF1> funz (new TF1("funz","0",0,graph->GetBinLowEdge(graph->GetNbinsX()+1)));
   funz->SetLineColor(kRed);
   funz->SetLineWidth(2);
   graph->Draw("HISTsame");
@@ -448,7 +448,7 @@ void plotMaxima(TCanvas* canvas, const std::vector<TH1F*> & curves, string outpu
   graph->Draw();
   CMS_lumi(canvas,"");
   graph->SetFillColor(kGreen+1);
-  std::auto_ptr<TF1> funz (new TF1("funz","0",0,graph->GetBinLowEdge(graph->GetNbinsX()+1)));
+  std::unique_ptr<TF1> funz (new TF1("funz","0",0,graph->GetBinLowEdge(graph->GetNbinsX()+1)));
   funz->SetLineColor(kRed);
   funz->SetLineWidth(2);
   graph->Draw("HISTsame");

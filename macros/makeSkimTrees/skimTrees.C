@@ -58,7 +58,6 @@ void skimTrees(string inputFileName, string outputFileName, bool isBOn = true) {
 	getline(infile,filename);
 	if(filename == "" or not TString(filename.c_str()).Contains("root")) continue;
 	inputFile.push_back(TFile::Open(filename.c_str()));
-
 	clustersTree.push_back((TTree*) inputFile.back()->FindObjectAny("clusters"));
 	if(clustersTree.back() == 0 or clustersTree.back() == NULL){
 	  cout<<"[skimTrees] no cluster tree found --> problem --> skip "<<endl;
@@ -102,7 +101,7 @@ void skimTrees(string inputFileName, string outputFileName, bool isBOn = true) {
   string clusterSelection;
   if(isBOn){
     eventSelection   = "nVertices > 0 && ";
-    trackSelection   = "pt > 1.5 && quality>2 && pterr/pt < 0.2 && dedx1 < 5 && ";
+    trackSelection   = "pt > 1.0 && quality > 2 && pterr/pt < 0.2 && dedx1 < 5 && ";
     vertexSelection  = "";
     clusterSelection = "onTrack && angle > 0 && maxCharge < 254";
   }
@@ -121,13 +120,12 @@ void skimTrees(string inputFileName, string outputFileName, bool isBOn = true) {
 
   vector<TTree*> outputTree;
   TList* tree_list = new TList();
-  for(size_t itree = 0; itree < clustersTree.size(); itree++){
 
+  for(size_t itree = 0; itree < clustersTree.size(); itree++){
     // in order to apply selections
     clustersTree.at(itree)->AddFriend(eventTree.at(itree));
     clustersTree.at(itree)->AddFriend(trackTree.at(itree));
-    clustersTree.at(itree)->AddFriend(vertexTree.at(itree));
-    
+    clustersTree.at(itree)->AddFriend(vertexTree.at(itree));    
     outputTree.push_back(clustersTree.at(itree)->CopyTree((eventSelection+trackSelection+vertexSelection+clusterSelection).c_str()));
     tree_list->Add(outputTree.back());
   }
@@ -137,21 +135,22 @@ void skimTrees(string inputFileName, string outputFileName, bool isBOn = true) {
 
   /// Just use the first file here
   cout<<"### Copy the PSU map in the output map "<<endl;
-  //copy the PSU map
   TTree* PSUmap = (TTree*) inputFile.front()->FindObjectAny("psumap");
   if(PSUmap == 0 or PSUmap == NULL){
     cout<<"[skimTrees] no PSU map found --> problem "<<endl;
-    return;
   }      
-  PSUmap->CloneTree()->Write("psumap",TObject::kOverwrite);
+  else{
+    PSUmap->CloneTree()->Write("psumap",TObject::kOverwrite);
+  }
 
   cout<<"### Copy the readout map in the output map "<<endl;
   TTree* readoutMap = (TTree*) inputFile.front()->FindObjectAny("readoutMap");
   if(readoutMap == 0 or readoutMap == NULL){
     cout<<"[skimTrees] no readoutMap found --> problem "<<endl;
-    return;
   }      
-  readoutMap->CloneTree()->Write("readoutMap",TObject::kOverwrite);
+  else{
+    readoutMap->CloneTree()->Write("readoutMap",TObject::kOverwrite);
+  }
 
   std::cout << "Saving merged file." << std::endl;
   outputFile->Close();
