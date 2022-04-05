@@ -54,10 +54,7 @@ private:
   unsigned runnumber;
   unsigned lumisection;
   unsigned runtype;
-  unsigned dcuid;
   unsigned fedreadout;
-  unsigned pllcoarse;
-  unsigned pllfine;
   unsigned delayrange;
   unsigned delaystepsize;
   unsigned delaystep;
@@ -90,11 +87,9 @@ void CheckStripEventSummary::beginJob() {
   tree->Branch("lumisection", &lumisection, "lumisection/i");
   tree->Branch("runtype", &runtype, "runtype/i");
   tree->Branch("fedreadout", &fedreadout, "fedreadout/i");
-  tree->Branch("dcuid", &dcuid, "dcuid/i");
-  tree->Branch("pllcoarse", &pllcoarse, "pllcoarse/i");
-  tree->Branch("pllfine", &pllfine, "pllfine/i");
   tree->Branch("delayrange", &delayrange, "delayrange/i");
   tree->Branch("delaystepsize", &delaystepsize, "delaystepsize/i");
+  tree->Branch("delaystep", &delaystep, "delaystep/i");
 }
 
 void CheckStripEventSummary::beginRun(edm::Run const& run, const edm::EventSetup& setup) {
@@ -112,13 +107,11 @@ void CheckStripEventSummary::analyze(const edm::Event& ievent, const edm::EventS
   runnumber = ievent.id().run();
   lumisection = ievent.luminosityBlock();
   event = ievent.id().event();
-  runtype = summary->runType();
+  runtype = static_cast<unsigned int>(summary->runType());
   fedreadout = summary->fedReadoutMode();
-  dcuid = summary->dcuId();
-  pllcoarse = summary->pllCoarse();
-  pllfine = summary->pllFine();
-  delayrange = summary->delayRange();
-  delaystepsize = summary->delayStepSize();
+  delayrange = summary->randomDelayRange();
+  delaystepsize = summary->randomDelayStepSize();
+  delaystep = summary->randomDelayStep();
 
   tree->Fill();
 }
