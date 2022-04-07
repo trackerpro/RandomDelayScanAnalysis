@@ -1,6 +1,11 @@
+import glob
 import FWCore.ParameterSet.Config as cms
 from FWCore.ParameterSet.VarParsing import VarParsing
+
 options = VarParsing ('python')
+options.register(
+'inputFileDir',"",VarParsing.multiplicity.singleton,VarParsing.varType.string,'input directory with files'
+)
 options.parseArguments()
 
 from Configuration.StandardSequences.Eras import eras
@@ -9,6 +14,10 @@ process = cms.Process("fedheaderanalysis",eras.Run3)
 process.load("FWCore.MessageService.MessageLogger_cfi")
 process.MessageLogger.cerr.FwkReport.reportEvery = 100
 process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(options.maxEvents) )
+
+if options.inputFileDir:
+    for files in glob.glob(options.inputFileDir+"/*root"):
+        options.inputFiles.append("file:"+files);
 
 process.source = cms.Source ("PoolSource",
     fileNames = cms.untracked.vstring(options.inputFiles)
