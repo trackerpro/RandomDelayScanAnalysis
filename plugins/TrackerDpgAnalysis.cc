@@ -64,6 +64,7 @@
 #include "DataFormats/GeometryVector/interface/LocalVector.h"
 #include "DataFormats/SiStripDetId/interface/SiStripDetId.h"
 #include "DataFormats/TrackerCommon/interface/TrackerTopology.h"
+#include "DataFormats/SiStripCommon/interface/SiStripEventSummary.h"
 #include "Geometry/Records/interface/TrackerTopologyRcd.h"
 #include "DataFormats/TrackReco/interface/TrackFwd.h"
 #include "DataFormats/TrackReco/interface/Track.h"
@@ -105,21 +106,22 @@ public:
 protected:
 
   // vertex function
-  std::map<size_t,int> inVertex(const reco::TrackCollection&, const reco::VertexCollection&, uint32_t);
+  std::map<size_t,int> inVertex(const reco::TrackCollection&, const reco::VertexCollection&, unsigned int);
   double sumPtSquared(const reco::Vertex&);
-
+  
   // strip cluster ontrack
-  std::vector<int> onTrack(edm::Handle<edmNew::DetSetVector<SiStripCluster> >&,const reco::TrackCollection&, uint32_t );
+  std::vector<int> onTrack(edm::Handle<edmNew::DetSetVector<SiStripCluster> >&,const reco::TrackCollection&, unsigned int );
   std::vector<double> onTrackAngles(edm::Handle<edmNew::DetSetVector<SiStripCluster> >&,const std::vector<Trajectory>& );
 
-  void insertMeasurement(std::multimap<const uint32_t,std::pair<LocalPoint,double> >&, const TransientTrackingRecHit*,double);
-  void insertMeasurement(std::multimap<const uint32_t,std::pair<int,int> >&, const TrackingRecHit*,int);
-  void insertMeasurement(std::multimap<const uint32_t,std::pair<LocalPoint,std::pair<double,double> > >&, const TransientTrackingRecHit*,double,double);
-  void insertMeasurement(std::multimap<const uint32_t,std::pair<std::pair<float, float>,int> >&, const TrackingRecHit*,int);
+  void insertMeasurement(std::multimap<const unsigned int,std::pair<LocalPoint,double> >&, const TransientTrackingRecHit*,double);
+  void insertMeasurement(std::multimap<const unsigned int,std::pair<int,int> >&, const TrackingRecHit*,int);
+  void insertMeasurement(std::multimap<const unsigned int,std::pair<LocalPoint,std::pair<double,double> > >&, const TransientTrackingRecHit*,double,double);
+  void insertMeasurement(std::multimap<const unsigned int,std::pair<std::pair<float, float>,int> >&, const TrackingRecHit*,int);
 
-  std::string toStringName(uint32_t, const TrackerTopology*);
-  std::string toStringId(uint32_t);
-  std::map<uint32_t,float> delay(const std::vector<std::string>&);
+  // for extracting the delay information
+  std::string toStringName(unsigned int, const TrackerTopology*);
+  std::string toStringId(unsigned int);
+  std::map<unsigned int,float> delay(const std::string &);
   
 private:
   
@@ -137,15 +139,15 @@ private:
   edm::EDGetTokenT<reco::VertexCollection> vertexToken_;
   edm::EDGetTokenT<reco::BeamSpot> bsToken_;
   edm::EDGetTokenT<L1GlobalTriggerReadoutRecord> L1Token_;
+  edm::EDGetTokenT<SiStripEventSummary> stripEventSummaryToken_;  
   edm::InputTag HLTTag_;
   edm::EDGetTokenT<edm::TriggerResults> HLTToken_;
-  std::vector<edm::InputTag> trackLabels_;
-  std::vector<edm::EDGetTokenT<reco::TrackCollection> > trackTokens_;
-  std::vector<edm::EDGetTokenT<std::vector<Trajectory> > > trajectoryTokens_;
-  std::vector<edm::EDGetTokenT<TrajTrackAssociationCollection> > trajTrackAssoTokens_;
-  edm::ESHandle<SiStripFedCabling> cabling_;
-  edm::ESHandle<TrackerGeometry> tracker_;
-  std::multimap<const uint32_t,const FedChannelConnection*> connections_;
+  edm::EDGetTokenT<reco::TrackCollection>  trackTokens_;
+  edm::EDGetTokenT<std::vector<Trajectory> >  trajectoryTokens_;
+  edm::EDGetTokenT<TrajTrackAssociationCollection> trajTrackAssoTokens_;
+  const SiStripFedCabling* cabling_;
+  const TrackerGeometry* tracker_;
+  std::multimap<const unsigned int,const FedChannelConnection*> connections_;
   edm::ESGetToken<MagneticField, IdealMagneticFieldRecord> magFieldToken_;
   edm::ESGetToken<TrackerTopology, TrackerTopologyRcd> tTopoToken_;
   edm::ESGetToken<TrackerGeometry, TrackerDigiGeometryRecord> tkGeomToken_;
@@ -157,19 +159,34 @@ private:
   bool functionality_vertices_;
   bool functionality_events_;
 
+  edm::ParameterSet pset_; 
+  std::vector<std::string>  hltNames_;  // name of each HLT algorithm
+  std::string delayFileName_; // name of file with PLL delya map
+  std::map<std::string,int> triggerPathsMap;
+
+  // Output trees and their branches
   TTree* clusters_;
   TTree* pixclusters_;
-  std::vector<TTree*> tracks_;
+  TTree* tracks_;
   TTree* vertices_;
   TTree* event_;
   TTree* readoutmap_;
 
-  bool onTrack_;
-  uint32_t vertexid_;
-  edm::EventNumber_t eventid_;
-  uint32_t runid_;
-  uint32_t globalvertexid_;
-  uint32_t *globaltrackid_, *trackid_;
+  bool onTrack_, isValid_pvtx_, isFake_pvtx_;
+  std::string moduleName_, moduleId_, PSUname_;
+  std::vector<bool> hltTriggerBits_;
+  std::vector<std::string> hltTriggerNames_;
+  unsigned int runtype_, fedreadout_, delayrange_, delaystepsize_, delaystep_;
+  unsigned int fecCrate_, fecSlot_, fecRing_, ccuAdd_, ccuChan_, lldChannel_, fedId_, fedCh_, fiberLength_;
+  unsigned int vertexid_, eventid_, runid_, globalvertexid_;
+  unsigned int detid_, dcuId_, type_;
+  unsigned int nclusters_, nclustersOntrack_, dedxNoM_, quality_, foundhits_, lostHits_, ndof_;
+  unsigned int nVertices_, nLayers_,foundhitsStrips_,foundhitsPixels_,losthitsStrips_,losthitsPixels_;
+  unsigned int nTracks_pvtx_;
+  unsigned int clSize_, clSizeX_, clSizeY_;
+  unsigned int orbit_, orbitL1_, bx_, store_, time_;
+  unsigned int lumisec_, physicsDeclared_;
+  unsigned int globaltrackid_, trackid_, ntracks_, ntrajs_;
   float globalX_, globalY_, globalZ_;
   float measX_, measY_, errorX_, errorY_;
   float angle_, maxCharge_;
@@ -179,32 +196,15 @@ private:
   float clWidth_, clPosition_, thickness_, stripLength_, distance_;
   float eta_, phi_, chi2_;
   float dedx1_, dedx2_, dedx3_;
-  uint32_t detid_, dcuId_, type_;
-  uint16_t fecCrate_, fecSlot_, fecRing_, ccuAdd_, ccuChan_, lldChannel_, fedId_, fedCh_, fiberLength_;
-  uint32_t nclusters_, npixClusters_, nclustersOntrack_, npixClustersOntrack_, dedxNoM_, quality_, foundhits_, lostHits_, ndof_;
-  uint32_t *ntracks_, *ntrajs_;
-  float *lowPixelProbabilityFraction_;
-  uint32_t nVertices_, nPixelVertices_, nLayers_,foundhitsStrips_,foundhitsPixels_,losthitsStrips_,losthitsPixels_;
-  uint32_t nTracks_pvtx_;
-  uint32_t clSize_, clSizeX_, clSizeY_;
   float fBz_, clPositionX_, clPositionY_, alpha_, beta_, chargeCorr_;
   float recx_pvtx_, recy_pvtx_, recz_pvtx_, recx_err_pvtx_, recy_err_pvtx_, recz_err_pvtx_, sumptsq_pvtx_;
   float pterr_, etaerr_, phierr_;
   float dz_, dzerr_, dzCorr_, dxy_, dxyerr_, dxyCorr_;
   float qoverp_, xPCA_, yPCA_, zPCA_, trkWeightpvtx_;
-  bool isValid_pvtx_, isFake_pvtx_;
   float charge_, p_, pt_;
   float bsX0_, bsY0_, bsZ0_, bsSigmaZ_, bsDxdz_, bsDydz_;
-  float thrustValue_, thrustX_, thrustY_, thrustZ_, sphericity_, planarity_, aplanarity_, delay_;
-  std::vector<bool> L1DecisionBits_, L1TechnicalBits_, HLTDecisionBits_;
-  uint32_t orbit_, orbitL1_, bx_, store_, time_;
-  uint16_t lumiSegment_, physicsDeclared_;
-  char *moduleName_, *moduleId_, *PSUname_;
-  std::string cablingFileName_;
-  std::vector<std::string> delayFileNames_;
-  edm::ParameterSet pset_;
-  std::vector<std::string>  hlNames_;  // name of each HLT algorithm
-  HLTConfigProvider hltConfig_;        // to get configuration for L1s/Pre
+  float delay_;
+  float lowPixelProbabilityFraction_;
 
 };
 
@@ -214,19 +214,15 @@ private:
 TrackerDpgAnalysis::TrackerDpgAnalysis(const edm::ParameterSet& iConfig):
   siStripClusterInfo_(consumesCollector(), std::string("")),
   magFieldToken_(esConsumes()),
-  tTopoToken_(esConsumes<edm::Transition::BeginRun>()),
+  tTopoToken_(esConsumes<TrackerTopology, TrackerTopologyRcd, edm::Transition::BeginRun>()),
   tkGeomToken_(esConsumes<edm::Transition::BeginRun>()),
-  fedCablingToken_(esConsumes<edm::Transition::BeginRun>()),
-  hltConfig_() {
+  fedCablingToken_(esConsumes<edm::Transition::BeginRun>()){
 
   // members
-  moduleName_ = new char[256];
-  moduleId_   = new char[256];
-  PSUname_    = new char[256];
-  pset_       = iConfig;
-
   usesResource();
   usesResource("TFileService");
+  // store PSET
+  pset_ = iConfig;
 
   // enable/disable functionalities
   functionality_offtrackClusters_ = iConfig.getUntrackedParameter<bool>("keepOfftrackClusters",true);
@@ -236,34 +232,28 @@ TrackerDpgAnalysis::TrackerDpgAnalysis(const edm::ParameterSet& iConfig):
   functionality_events_           = iConfig.getUntrackedParameter<bool>("keepEvents",true);
   
   // parameters
-  clusterToken_      = consumes<edmNew::DetSetVector<SiStripCluster> >(iConfig.getParameter<edm::InputTag>("ClustersLabel"));
-  trackLabels_       = iConfig.getParameter<std::vector<edm::InputTag> >("TracksLabel");
-  trackTokens_         = edm::vector_transform(trackLabels_, [this](edm::InputTag const & tag){return consumes<reco::TrackCollection>(tag);});
-  trajectoryTokens_    = edm::vector_transform(trackLabels_, [this](edm::InputTag const & tag){return consumes<std::vector<Trajectory> >(tag);});
-  trajTrackAssoTokens_ = edm::vector_transform(trackLabels_, [this](edm::InputTag const & tag){return consumes<TrajTrackAssociationCollection>(tag);});
-  dedx1Token_        = consumes<edm::ValueMap<reco::DeDxData> >(iConfig.getParameter<edm::InputTag>("DeDx1Label"));
-  dedx2Token_        = consumes<edm::ValueMap<reco::DeDxData> >(iConfig.getParameter<edm::InputTag>("DeDx2Label"));
-  dedx3Token_        = consumes<edm::ValueMap<reco::DeDxData> >(iConfig.getParameter<edm::InputTag>("DeDx3Label"));
-  vertexToken_       = consumes<reco::VertexCollection>(iConfig.getParameter<edm::InputTag>("vertexLabel"));
-  bsToken_           = consumes<reco::BeamSpot>(iConfig.getParameter<edm::InputTag>("beamSpotLabel"));
-  L1Token_           = consumes<L1GlobalTriggerReadoutRecord>(iConfig.getParameter<edm::InputTag>("L1Label"));
-  HLTTag_            = iConfig.getParameter<edm::InputTag>("HLTLabel");
-  HLTToken_          = consumes<edm::TriggerResults>(HLTTag_);
-
-  globalvertexid_  = iConfig.getParameter<uint32_t>("InitalCounter");
-  delayFileNames_  = iConfig.getUntrackedParameter<std::vector<std::string> >("DelayFileNames",std::vector<std::string>(0));
+  clusterToken_    = consumes<edmNew::DetSetVector<SiStripCluster> >(iConfig.getParameter<edm::InputTag>("ClustersLabel"));
+  trackTokens_     = consumes<reco::TrackCollection> (iConfig.getParameter<edm::InputTag>("TracksLabel"));
+  trajectoryTokens_  = consumes<std::vector<Trajectory> > (iConfig.getParameter<edm::InputTag>("TracksLabel"));
+  trajTrackAssoTokens_  = consumes<TrajTrackAssociationCollection> (iConfig.getParameter<edm::InputTag>("TracksLabel"));
+  dedx1Token_      = consumes<edm::ValueMap<reco::DeDxData> >(iConfig.getParameter<edm::InputTag>("DeDx1Label"));
+  dedx2Token_      = consumes<edm::ValueMap<reco::DeDxData> >(iConfig.getParameter<edm::InputTag>("DeDx2Label"));
+  dedx3Token_      = consumes<edm::ValueMap<reco::DeDxData> >(iConfig.getParameter<edm::InputTag>("DeDx3Label"));
+  vertexToken_     = consumes<reco::VertexCollection>(iConfig.getParameter<edm::InputTag>("vertexLabel"));
+  bsToken_         = consumes<reco::BeamSpot>(iConfig.getParameter<edm::InputTag>("beamSpotLabel"));
+  L1Token_         = consumes<L1GlobalTriggerReadoutRecord>(iConfig.getParameter<edm::InputTag>("L1Label"));
+  stripEventSummaryToken_ = consumes<SiStripEventSummary>(iConfig.getParameter<edm::InputTag>("StripEventSummary"));
+  HLTTag_          = iConfig.getParameter<edm::InputTag>("HLTLabel");
+  HLTToken_        = consumes<edm::TriggerResults>(HLTTag_);
+  hltNames_        = iConfig.getParameter<std::vector<std::string> >("HLTNames");
+  globalvertexid_  = iConfig.getParameter<unsigned int>("InitalCounter");
+  delayFileName_   = iConfig.getParameter<std::string>("DelayFileName");
 
 }
 
 TrackerDpgAnalysis::~TrackerDpgAnalysis()
-{
-  delete[] moduleName_;
-  delete[] moduleId_;
-}
+{}
 
-//
-// member functions
-//
 
 // ------------ method called to for each event  ------------
 void
@@ -277,51 +267,46 @@ TrackerDpgAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup& iSe
    // load event info
    eventid_     = iEvent.id().event();
    runid_       = iEvent.id().run();
+   lumisec_     = iEvent.eventAuxiliary().luminosityBlock();
    bx_          = iEvent.eventAuxiliary().bunchCrossing();
    orbit_       = iEvent.eventAuxiliary().orbitNumber();
    store_       = iEvent.eventAuxiliary().storeNumber();
    time_        = iEvent.eventAuxiliary().time().value();
-   lumiSegment_ = iEvent.eventAuxiliary().luminosityBlock();
-      
-   // -- Magnetic field
-   fBz_ = fabs(iSetup.getData(magFieldToken_).inTesla(GlobalPoint(0, 0, 0)).z());
-   
+
    // SiStrip cluster
    siStripClusterInfo_.initEvent(iSetup);
+
+   // -- Magnetic field
+   fBz_ = fabs(iSetup.getData(magFieldToken_).inTesla(GlobalPoint(0, 0, 0)).z());
+
+   // delay scan step
+   edm::Handle<SiStripEventSummary> summary;
+   iEvent.getByToken(stripEventSummaryToken_, summary);
+   runtype_ = static_cast<unsigned int>(summary->runType());
+   fedreadout_ = summary->fedReadoutMode();
+   delayrange_ = summary->randomDelayRange();
+   delaystepsize_ = summary->randomDelayStepSize();
+   delaystep_ = summary->randomDelayStep();
    
    // load trigger info
    edm::Handle<L1GlobalTriggerReadoutRecord> gtrr_handle;
    iEvent.getByToken(L1Token_, gtrr_handle);
-   L1GlobalTriggerReadoutRecord const* gtrr = gtrr_handle.product();
+   const L1GlobalTriggerReadoutRecord* gtrr = gtrr_handle.product();
    L1GtFdlWord fdlWord = gtrr->gtFdlWord();
-   L1DecisionBits_.clear();
-   L1TechnicalBits_.clear();
-   DecisionWord L1decision = fdlWord.gtDecisionWord();
-   DecisionWordExtended L1decisionE = fdlWord.gtDecisionWordExtended();
-   TechnicalTriggerWord L1technical = fdlWord.gtTechnicalTriggerWord();
-   if(functionality_events_){
-     for(size_t bit=0;bit<L1decision.size();++bit) {
-       L1DecisionBits_.push_back(L1decision[bit]);
-     }   
-     for(size_t bit=0;bit<L1decisionE.size();++bit) {
-       L1DecisionBits_.push_back(L1decisionE[bit]);
-     }
-     for(size_t bit=0;bit<L1technical.size();++bit) {
-       L1TechnicalBits_.push_back(L1technical[bit]);
-     }
-   }
    orbitL1_ = fdlWord.orbitNr();
    physicsDeclared_ = fdlWord.physicsDeclared();
 
    edm::Handle<edm::TriggerResults> trh;
    iEvent.getByToken(HLTToken_, trh);
-   HLTDecisionBits_.clear();
-   size_t ntrh = trh->size();
+   hltTriggerBits_.clear();
+   hltTriggerNames_.clear();
    if(functionality_events_){
-     for(size_t bit=0;bit<trh->size();++bit)
-       HLTDecisionBits_.push_back(bit<ntrh ? (bool)(trh->accept(bit)): false);
+     for(auto key : triggerPathsMap){
+       hltTriggerNames_.push_back(key.first);
+       hltTriggerBits_.push_back(trh->accept(key.second));
+     }
    }
-   
+
    // load beamspot
    edm::Handle<reco::BeamSpot> recoBeamSpotHandle;
    iEvent.getByToken(bsToken_,recoBeamSpotHandle);
@@ -355,7 +340,7 @@ TrackerDpgAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup& iSe
        if(v->isValid() && !v->isFake()) ++nVertices_;
      }
    }
-       
+   
     // load the clusters
    edm::Handle<edmNew::DetSetVector<SiStripCluster> > clusters;
    iEvent.getByToken(clusterToken_,clusters);
@@ -372,49 +357,37 @@ TrackerDpgAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup& iSe
    const ValueMap<DeDxData> dEdxTrack3 = *dEdx3Handle.product();
 
    // load track collections
-   const size_t trackSize(trackLabels_.size());
-   std::vector<reco::TrackCollection> trackCollection;
-   std::vector<edm::Handle<reco::TrackCollection> > trackCollectionHandle;
-   trackCollectionHandle.resize(trackSize);
-   size_t index = 0;
-   for(std::vector<edm::EDGetTokenT<reco::TrackCollection> >::const_iterator token = trackTokens_.begin();token!=trackTokens_.end();++token,++index) {
-     try {iEvent.getByToken(*token,trackCollectionHandle[index]);} catch ( cms::Exception& ) {;}
-     trackCollection.push_back(*trackCollectionHandle[index].product());
-     ntracks_[index] = trackCollection[index].size();
-   }
+   reco::TrackCollection trackCollection;
+   edm::Handle<reco::TrackCollection> trackCollectionHandle;
+   iEvent.getByToken(trackTokens_,trackCollectionHandle);
+   trackCollection = *trackCollectionHandle.product();
+   ntracks_ = trackCollection.size();
 
    // load the trajectory collections
-   std::vector<std::vector<Trajectory> > trajectoryCollection;
-   std::vector<edm::Handle<std::vector<Trajectory> > > trajectoryCollectionHandle;
-   trajectoryCollectionHandle.resize(trackSize);
-   index = 0;
-   for(std::vector<edm::EDGetTokenT<std::vector<Trajectory> > >::const_iterator token = trajectoryTokens_.begin();token!=trajectoryTokens_.end();++token,++index) {
-     try {iEvent.getByToken(*token,trajectoryCollectionHandle[index]);} catch ( cms::Exception& ) {;}
-     trajectoryCollection.push_back(*trajectoryCollectionHandle[index].product());
-     ntrajs_[index] = trajectoryCollection[index].size();
-   }
+   std::vector<Trajectory> trajectoryCollection;
+   edm::Handle<std::vector<Trajectory> > trajectoryCollectionHandle;
+   iEvent.getByToken(trajectoryTokens_,trajectoryCollectionHandle);
+   trajectoryCollection = *trajectoryCollectionHandle.product();
+   ntrajs_ = trajectoryCollection.size();
 
    // load the tracks/traj association maps
-   std::vector<TrajTrackAssociationCollection> TrajToTrackMap;
+   TrajTrackAssociationCollection TrajToTrackMap;
    Handle<TrajTrackAssociationCollection> trajTrackAssociationHandle;
-   for(std::vector<edm::EDGetTokenT<TrajTrackAssociationCollection> >::const_iterator token = trajTrackAssoTokens_.begin();token!=trajTrackAssoTokens_.end();++token) {
-     try {iEvent.getByToken(*token,trajTrackAssociationHandle);} catch ( cms::Exception& ) {;}
-     TrajToTrackMap.push_back(*trajTrackAssociationHandle.product());
-   }
-   
+   iEvent.getByToken(trajTrackAssoTokens_,trajTrackAssociationHandle);
+   TrajToTrackMap = *trajTrackAssociationHandle.product();
+
    // sanity check
-   if(!(!trackCollection.empty() && !trajectoryCollection.empty())) return;
+   if(!(!trackCollection.empty() && !trajectoryCollection.empty())){
+     edm::LogError("BadConfig") << " the track and trajectory collections are empty --> please check ";
+     return;
+   }
 
    // build the reverse map tracks -> vertex
-   std::vector<std::map<size_t,int> > trackVertices;
-   for(size_t i=0;i<trackSize;++i) {
-     trackVertices.push_back(inVertex(trackCollection[0], vertexColl, globalvertexid_+1));
-   }
-
+   std::map<size_t,int> trackVertices = inVertex(trackCollection, vertexColl, globalvertexid_+1);
+   
    // iterate over vertices
    if(functionality_vertices_) {
-     for(reco::VertexCollection::const_iterator v=vertexColl.begin();
-         v!=vertexColl.end(); ++v) {
+     for(reco::VertexCollection::const_iterator v=vertexColl.begin(); v!=vertexColl.end(); ++v) {
        nTracks_pvtx_ = v->tracksSize();
        sumptsq_pvtx_ = sumPtSquared(*v);
        isValid_pvtx_ = int(v->isValid());
@@ -430,120 +403,110 @@ TrackerDpgAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup& iSe
      }
    }
 
-
    // determine if each cluster is on a track or not, and record the trackid
-   std::vector< std::vector<int> > stripClusterOntrackIndices;
+   std::vector<int> stripClusterOntrackIndices;
    if(functionality_events_){
-     for(size_t i = 0; i<trackSize; ++i) {
-       stripClusterOntrackIndices.push_back(onTrack(clusters,trackCollection[i],globaltrackid_[i]+1));
-     }
-     nclustersOntrack_ = count_if(stripClusterOntrackIndices[0].begin(),stripClusterOntrackIndices[0].end(),bind2nd(not_equal_to<int>(), -1));
+     stripClusterOntrackIndices = onTrack(clusters,trackCollection,globaltrackid_+1);
+     nclustersOntrack_ = std::count_if(stripClusterOntrackIndices.begin(),stripClusterOntrackIndices.end(),bind2nd(not_equal_to<int>(), -1));
    }
    
    // iterate over tracks
-   const Point beamSpot = recoBeamSpotHandle.isValid() ?
-     Point(recoBeamSpotHandle->x0(), recoBeamSpotHandle->y0(), recoBeamSpotHandle->z0()) :
-     Point(0, 0, 0);
-
+   const Point beamSpot = recoBeamSpotHandle.isValid() ? Point(recoBeamSpotHandle->x0(), recoBeamSpotHandle->y0(), recoBeamSpotHandle->z0()) : Point(0, 0, 0);
+   // Save track info
+   lowPixelProbabilityFraction_ = 0;
    if(functionality_tracks_){     
-     for (size_t coll = 0; coll<trackCollection.size(); ++coll) {
-       uint32_t n_hits_barrel=0;
-       uint32_t n_hits_lowprob=0;
-       for(TrajTrackAssociationCollection::const_iterator it = TrajToTrackMap[coll].begin(); it!=TrajToTrackMap[coll].end(); ++it) {
-	 reco::TrackRef itTrack  = it->val;
-	 edm::Ref<std::vector<Trajectory> > traj  = it->key; // bug to find type of the key
-	 eta_   = itTrack->eta();
-	 phi_   = itTrack->phi();
-	 try { // not all track collections have the dedx info... indeed at best one.
-	   dedxNoM_ = dEdxTrack1[itTrack].numberOfMeasurements();
-	   dedx1_ = dEdxTrack1[itTrack].dEdx();
-	   dedx2_ = dEdxTrack2[itTrack].dEdx();
-	   dedx3_ = dEdxTrack3[itTrack].dEdx();
-	 } catch ( cms::Exception& ) {
-	   dedxNoM_ = 0;
-	   dedx1_ = 0.;
-	   dedx2_ = 0.;
-	   dedx3_ = 0.;
-	 }
-	 charge_    = itTrack->charge();
-	 quality_   = itTrack->qualityMask();
-	 foundhits_ = itTrack->found();
-	 lostHits_  = itTrack->lost();
-	 foundhitsStrips_ =  itTrack->hitPattern().numberOfValidStripHits();
-	 foundhitsPixels_ =  itTrack->hitPattern().numberOfValidPixelHits();
-	 losthitsStrips_  =  itTrack->hitPattern().numberOfLostStripHits(reco::HitPattern::TRACK_HITS);
-	 losthitsPixels_  =  itTrack->hitPattern().numberOfLostPixelHits(reco::HitPattern::TRACK_HITS);
-	 nLayers_         = uint32_t(itTrack->hitPattern().trackerLayersWithMeasurement());
-	 p_       = itTrack->p();
-	 pt_      = itTrack->pt();
-	 chi2_    = itTrack->chi2();
-	 ndof_    = (uint32_t)itTrack->ndof();
-	 dz_      = itTrack->dz();
-	 dzerr_   = itTrack->dzError();
-	 dzCorr_  = itTrack->dz(beamSpot);
-	 dxy_     = itTrack->dxy();
-	 dxyerr_  = itTrack->dxyError();
-	 dxyCorr_ = itTrack->dxy(beamSpot);
-	 pterr_   = itTrack->ptError();
-	 etaerr_  = itTrack->etaError();
-	 phierr_  = itTrack->phiError();
-	 qoverp_  = itTrack->qoverp();
-	 xPCA_    = itTrack->vertex().x();
-	 yPCA_    = itTrack->vertex().y();
-	 zPCA_    = itTrack->vertex().z();
-	 
-	 try { // only one track collection (at best) is connected to the main vertex
-	   if(!vertexColl.empty() && !vertexColl.begin()->isFake()) {
-	     trkWeightpvtx_ = vertexColl.begin()->trackWeight(itTrack);
-	   } else
-	     trkWeightpvtx_ = 0.;
-	 } catch ( cms::Exception& ) {
-	   trkWeightpvtx_ = 0.;
-	 }
+     unsigned int n_hits_barrel = 0;
+     unsigned int n_hits_lowprob = 0;
+     for(TrajTrackAssociationCollection::const_iterator it = TrajToTrackMap.begin(); it!=TrajToTrackMap.end(); ++it) {       
+       reco::TrackRef itTrack  = it->val;
+       edm::Ref<std::vector<Trajectory> > traj  = it->key; // bug to find type of the key
+       eta_   = itTrack->eta();
+       phi_   = itTrack->phi();
+       try { // not all track collections have the dedx info... indeed at best one.
+	 dedxNoM_ = dEdxTrack1[itTrack].numberOfMeasurements();
+	 dedx1_ = dEdxTrack1[itTrack].dEdx();
+	 dedx2_ = dEdxTrack2[itTrack].dEdx();
+	 dedx3_ = dEdxTrack3[itTrack].dEdx();
+       } catch ( cms::Exception& ) {
+	 dedxNoM_ = 0;
+	 dedx1_ = 0.;
+	 dedx2_ = 0.;
+	 dedx3_ = 0.;
+       }
+       charge_    = itTrack->charge();
+       quality_   = itTrack->qualityMask();
+       foundhits_ = itTrack->found();
+       lostHits_  = itTrack->lost();
+       foundhitsStrips_ =  itTrack->hitPattern().numberOfValidStripHits();
+       foundhitsPixels_ =  itTrack->hitPattern().numberOfValidPixelHits();
+       losthitsStrips_  =  itTrack->hitPattern().numberOfLostStripHits(reco::HitPattern::TRACK_HITS);
+       losthitsPixels_  =  itTrack->hitPattern().numberOfLostPixelHits(reco::HitPattern::TRACK_HITS);
+       nLayers_         =  itTrack->hitPattern().trackerLayersWithMeasurement();
+       p_       = itTrack->p();
+       pt_      = itTrack->pt();
+       chi2_    = itTrack->chi2();
+       ndof_    = itTrack->ndof();
+       dz_      = itTrack->dz();
+       dzerr_   = itTrack->dzError();
+       dzCorr_  = itTrack->dz(beamSpot);
+       dxy_     = itTrack->dxy();
+       dxyerr_  = itTrack->dxyError();
+       dxyCorr_ = itTrack->dxy(beamSpot);
+       pterr_   = itTrack->ptError();
+       etaerr_  = itTrack->etaError();
+       phierr_  = itTrack->phiError();
+       qoverp_  = itTrack->qoverp();
+       xPCA_    = itTrack->vertex().x();
+       yPCA_    = itTrack->vertex().y();
+       zPCA_    = itTrack->vertex().z();
 
-	 globaltrackid_[coll]++;
-	 std::map<size_t,int>::const_iterator theV = trackVertices[coll].find(itTrack.key());
-	 vertexid_ = (theV!=trackVertices[coll].end()) ? theV->second : 0;
-	 	 
-	 // compute the fraction of low probability pixels... will be added to the event tree
-	 for(trackingRecHit_iterator it = itTrack->recHitsBegin(); it!=itTrack->recHitsEnd(); ++it) {
-	   const TrackingRecHit* hit = &(**it);
-	   const SiPixelRecHit* pixhit = dynamic_cast<const SiPixelRecHit*>(hit);
-	   if(pixhit) {
-	     DetId detId = pixhit->geographicalId();
-	     if(detId.subdetId() == PixelSubdetector::PixelBarrel) {
-	       ++n_hits_barrel;
-	       double proba = pixhit->clusterProbability(0);
-	       if(proba<=0.0) ++n_hits_lowprob;
-	     }
+       try { // only one track collection (at best) is connected to the main vertex
+	 if(!vertexColl.empty() && !vertexColl.begin()->isFake()) {
+	   trkWeightpvtx_ = vertexColl.begin()->trackWeight(itTrack);
+	 } else
+	   trkWeightpvtx_ = 0.;
+       } catch ( cms::Exception& ) {
+	 trkWeightpvtx_ = 0.;
+       }
+       globaltrackid_++;
+       std::map<size_t,int>::const_iterator theV = trackVertices.find(itTrack.key());
+       vertexid_ = (theV!=trackVertices.end()) ? theV->second : 0;
+       // compute the fraction of low probability pixels... will be added to the event tree
+       for(trackingRecHit_iterator it = itTrack->recHitsBegin(); it!=itTrack->recHitsEnd(); ++it) {
+	 const TrackingRecHit* hit = &(**it);
+	 const SiPixelRecHit* pixhit = dynamic_cast<const SiPixelRecHit*>(hit);
+	 if(pixhit) {
+	   DetId detId = pixhit->geographicalId();
+	   if(detId.subdetId() == PixelSubdetector::PixelBarrel) {
+	     ++n_hits_barrel;
+	     double proba = pixhit->clusterProbability(0);
+	     if(proba<=0.0) ++n_hits_lowprob;
 	   }
 	 }
-	 tracks_[coll]->Fill();
        }
-       lowPixelProbabilityFraction_[coll] = n_hits_barrel>0 ? (float)n_hits_lowprob/n_hits_barrel : -1.;
+       tracks_->Fill();
      }
+     lowPixelProbabilityFraction_ = n_hits_barrel>0 ? (float)n_hits_lowprob/n_hits_barrel : -1.;
    }
-
-   uint32_t localCounter = 0;
+   
    // iterate over clusters
+   unsigned int localCounter = 0;
    nclusters_ = 0;
    if(functionality_offtrackClusters_||functionality_ontrackClusters_){
-     std::vector<double> clusterOntrackAngles = onTrackAngles(clusters,trajectoryCollection[0]);
+     std::vector<double> clusterOntrackAngles = onTrackAngles(clusters,trajectoryCollection);
      std::vector<double>::const_iterator angleIt = clusterOntrackAngles.begin();     
      for (edmNew::DetSetVector<SiStripCluster>::const_iterator DSViter=clusters->begin(); DSViter!=clusters->end();DSViter++ ) {
        edmNew::DetSet<SiStripCluster>::const_iterator begin=DSViter->begin();
        edmNew::DetSet<SiStripCluster>::const_iterator end  =DSViter->end();
-       uint32_t detid = DSViter->id();
+       unsigned int detid = DSViter->id();
        nclusters_ += DSViter->size();
 
        for(edmNew::DetSet<SiStripCluster>::const_iterator iter=begin;iter!=end;++iter,++angleIt,++localCounter) {
 	 siStripClusterInfo_.setCluster(*iter, detid);
          // general quantities
-         for(size_t i=0; i< trackSize; ++i) {
-           trackid_[i] = stripClusterOntrackIndices[i][localCounter];
-         }
-
-         onTrack_    = (trackid_[0] != (uint32_t)-1);
+	 trackid_ = stripClusterOntrackIndices[localCounter];
+	 //
+         onTrack_    = (trackid_ != (unsigned int)-1);
          clWidth_    = siStripClusterInfo_.width();
          clPosition_ = siStripClusterInfo_.baryStrip();
          angle_      = *angleIt;
@@ -572,7 +535,8 @@ TrackerDpgAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup& iSe
          detid_ = detid;
          lldChannel_ = 1+(int(floor(iter->barycenter()))/256);
          if(lldChannel_==2 && nstrips==512) lldChannel_=3;
-         if((functionality_offtrackClusters_&&!onTrack_)||(functionality_ontrackClusters_&&onTrack_)) clusters_->Fill();
+         if((functionality_offtrackClusters_&&!onTrack_)||(functionality_ontrackClusters_&&onTrack_)) 
+	   clusters_->Fill();
        }
      }
    }
@@ -581,54 +545,41 @@ TrackerDpgAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup& iSe
        nclusters_ += DSViter->size();
      }
    }
-   
-   
-   // topological quantities - uses the first track collection
-   EventShape shape(trackCollection[0]);
-   math::XYZTLorentzVectorF thrust = shape.thrust();
-   thrustValue_ = thrust.t();
-   thrustX_ = thrust.x();
-   thrustY_ = thrust.y();
-   thrustZ_ = thrust.z();
-   sphericity_ = shape.sphericity();
-   planarity_  = shape.planarity();
-   aplanarity_ = shape.aplanarity();
-   
+
    // fill event tree
-   if(functionality_events_) event_->Fill();
+   if(functionality_events_) 
+     event_->Fill();
+   
 }
 
 // ------------ method called once each job just before starting event loop  ------------
 
 void TrackerDpgAnalysis::beginRun(const edm::Run& iRun, const edm::EventSetup& iSetup){  
-  //Retrieve tracker topology from geometry
-  edm::ESHandle<TrackerTopology> tTopoHandle;
-  iSetup.get<TrackerTopologyRcd>().get(tTopoHandle);
-  const TrackerTopology* const tTopo = tTopoHandle.product();
-  
-  //geometry
-  iSetup.get<TrackerDigiGeometryRecord>().get(tracker_);
-  
-  //HLT names
-  bool changed = true;
-  if (hltConfig_.init(iRun,iSetup,HLTTag_.process(),changed)) {
-    if (changed) {
-      hlNames_ = hltConfig_.triggerNames();
-    }
-  }    
 
+  //Retrieve tracker topology from geometry
+  const TrackerTopology* tTopo = &iSetup.getData(tTopoToken_);
+
+  //geometry
+  tracker_ = &iSetup.getData(tkGeomToken_);
+  
+  // cabling I (readout)
+  cabling_ = &iSetup.getData(fedCablingToken_);
+  auto feds = cabling_->fedIds() ;
 
   // read the delay offsets for each device from input files
   // this is only for the so-called "random delay" run
-  std::map<uint32_t,float> delayMap = delay(delayFileNames_);
+  std::map<unsigned int,float> delayMap = delay(delayFileName_);
+  if(delayMap.empty()){
+    edm::LogError("BadConfig") << " The delay file does not exist. The delay map will not be filled properly."                                                                                     
+			       << std::endl << " Looking for " << delayFileName_ << "."                                                                                                             
+			       << std::endl << " Please specify valid filenames through the DelayFileName FileInPath parameter.";                                                                  
+    return;
+  }
+
   edm::ParameterSet pset;
   pset.addUntrackedParameter<bool>("logScale",false);
   TrackerMap themap(pset);
-  themap.setTitle("Delays");
 
-  // cabling I (readout)
-  iSetup.get<SiStripFedCablingRcd>().get( cabling_ );
-  auto feds = cabling_->fedIds() ;
   for(auto fedid = feds.begin();fedid<feds.end();++fedid) { 
     auto connections = cabling_->fedConnections(*fedid);
     for(auto conn=connections.begin();conn<connections.end();++conn) {
@@ -638,8 +589,8 @@ void TrackerDpgAnalysis::beginRun(const edm::Run& iRun, const edm::EventSetup& i
       // Fill the standalone tree (once for all)
       if(conn->isConnected()) {
 	detid_ = conn->detId();
-	strncpy(moduleName_,toStringName(detid_,tTopo).c_str(),256);
-	strncpy(moduleId_,toStringId(detid_).c_str(),256);
+	moduleName_ = toStringName(detid_,tTopo);
+	moduleId_ = toStringId(detid_);
 	lldChannel_ = conn->lldChannel();
 	dcuId_ = conn->dcuId();
 	fecCrate_ = conn->fecCrate();
@@ -661,231 +612,207 @@ void TrackerDpgAnalysis::beginRun(const edm::Run& iRun, const edm::EventSetup& i
       }
     }
   }
-
-  if(not delayMap.empty()){
-
-    std::stringstream delayName (delayFileNames_.front());
-    std::string segment;
-    std::vector<std::string> seglist;
-    while(std::getline(delayName, segment, '/')){
-      seglist.push_back(segment);
+  
+  // Naming convention from DAQ TK is TrackerMapDelay_Run<number>_pll.csv or TrackerMapDelay_Run<number>_fed.csv .. extract run number
+  std::stringstream delayName (delayFileName_);
+  std::string segment;
+  std::vector<std::string> seglist;
+  while(std::getline(delayName, segment, '/'))
+    seglist.push_back(segment);
+  std::stringstream fileName (seglist.back());
+  seglist.clear();
+  while(std::getline(fileName,segment,'_'))
+    seglist.push_back(segment);
+  TString mapname (seglist.at(1));
+  mapname = Form("DelayMap_"+mapname);
+  themap.setTitle("Delays");
+  themap.save(false,-10,10,std::string(mapname+".png"),1400,800);
+  
+  // HLT
+  bool flag = false;
+  HLTConfigProvider hltConfig;
+  hltConfig.init(iRun, iSetup, HLTTag_.process(), flag);
+  if(not hltNames_.empty()){
+    for(size_t itrig = 0; itrig < hltNames_.size(); itrig++){
+      auto it = std::find(hltConfig.triggerNames().begin(),hltConfig.triggerNames().end(),hltNames_.at(itrig));
+      if(it != hltConfig.triggerNames().end())
+	triggerPathsMap[*it] = (it-hltConfig.triggerNames().begin());
     }
-    TString mapname (seglist.back());
-    mapname.ReplaceAll(".xml","");
-    mapname.ReplaceAll("TI_27-JAN-2010_2_","");
-    mapname.ReplaceAll("TM_09-JUN-2009_1","");
-    mapname.ReplaceAll("TO_30-JUN-2009_1_","");
-    mapname.ReplaceAll("TP_09-JUN-2009_1_","");
-    mapname.ReplaceAll("crab/","");    
-    mapname = Form("DelayMap_"+mapname);
-    std::cout<<mapname<<std::endl;
-    themap.save(false,-10,10,std::string(mapname+".png"),1400,800);
+  }
+  else{
+    for(size_t i = 0; i < hltConfig.triggerNames().size(); i++){
+      std::string pathName = hltConfig.triggerNames()[i];
+      triggerPathsMap[pathName] = i;      
+    }
   } 
 }
 
 void TrackerDpgAnalysis::endRun(const edm::Run& iRun, const edm::EventSetup& iSetup){}
 
-
 void TrackerDpgAnalysis::beginJob(){
-
-  // initialize arrays
-  size_t trackSize(trackLabels_.size());
-  ntracks_ = new uint32_t[trackSize];
-  ntrajs_  = new uint32_t[trackSize];
-  globaltrackid_  = new uint32_t[trackSize];
-  trackid_ = new uint32_t[trackSize];
-  lowPixelProbabilityFraction_ = new float[trackSize];
-  for(size_t i = 0; i<trackSize;++i) {
-    ntracks_[i] = 0;
-    ntrajs_[i]  = 0;
-    globaltrackid_[i] = pset_.getParameter<uint32_t>("InitalCounter");
-    trackid_[i] = 0;
-    lowPixelProbabilityFraction_[i] = 0;
-  }
 
   // create output
   edm::Service<TFileService> fileService;
   TFileDirectory* dir = new TFileDirectory(fileService->mkdir("trackerDPG"));
 
+  globaltrackid_ = pset_.getParameter<unsigned int>("InitalCounter");
+  
+  // create a tree for the events
+  event_ = dir->make<TTree>("events","event information");
+  event_->Branch("eventid",&eventid_,"eventid/i");
+  event_->Branch("runid",&runid_,"runid/i");
+  event_->Branch("lumi",&lumisec_,"lumi/i");
+  event_->Branch("orbit",&orbit_,"orbit/i");
+  event_->Branch("orbitL1",&orbitL1_,"orbitL1/i");
+  event_->Branch("bx",&bx_,"bx/i");
+  event_->Branch("store",&store_,"store/i");
+  event_->Branch("time",&time_,"time/i");
+  event_->Branch("physicsDeclared",&physicsDeclared_,"physicsDeclared/s");
+  event_->Branch("hltTriggerBits","std::vector<bool>",&hltTriggerBits_);
+  event_->Branch("hltTriggerNames","std::vector<std::string>",&hltTriggerNames_);
+  event_->Branch("nclusters",&nclusters_,"nclusters/i");
+  event_->Branch("nclustersOntrack",&nclustersOntrack_,"nclustersOntrack/i");
+  event_->Branch("bsX0",&bsX0_,"bsX0/F");
+  event_->Branch("bsY0",&bsY0_,"bsY0/F");
+  event_->Branch("bsZ0",&bsZ0_,"bsZ0/F");
+  event_->Branch("bsSigmaZ",&bsSigmaZ_,"bsSigmaZ/F");
+  event_->Branch("bsDxdz",&bsDxdz_,"bsDxdz/F");
+  event_->Branch("bsDydz",&bsDydz_,"bsDydz/F");
+  event_->Branch("nVertices",&nVertices_,"nVertices/i");
+  event_->Branch("MagneticField",&fBz_,"MagneticField/F");
+  event_->Branch("ntracks",&ntracks_,"ntracks/i");
+  event_->Branch("ntrajs",&ntrajs_,"ntrajs/i");
+  event_->Branch("lowPixelProbabilityFraction",&lowPixelProbabilityFraction_,"lowPixelProbabilityFraction/F");
+  event_->Branch("runtype",&runtype_,"runtype/i");
+  event_->Branch("fedreadout",&fedreadout_,"fedreadout/i");
+  event_->Branch("delayrange",&delayrange_,"delayrange/i");
+  event_->Branch("delaystepsize",&delaystepsize_,"delaystepsize/i");
+  event_->Branch("delaystep",&delaystep_,"delaystep/i");
+  
+  // create a tree for the vertices
+  vertices_ = dir->make<TTree>("vertices","vertex information");
+  vertices_->Branch("vertexid",&globalvertexid_,"vertexid/i");
+  vertices_->Branch("eventid",&eventid_,"eventid/i");
+  vertices_->Branch("runid",&runid_,"runid/i");
+  vertices_->Branch("lumi",&lumisec_,"lumi/i");
+  vertices_->Branch("nTracks",&nTracks_pvtx_,"nTracks/i");
+  vertices_->Branch("sumptsq",&sumptsq_pvtx_,"sumptsq/F");
+  vertices_->Branch("isValid",&isValid_pvtx_,"isValid/O");
+  vertices_->Branch("isFake",&isFake_pvtx_,"isFake/O");
+  vertices_->Branch("recx",&recx_pvtx_,"recx/F");
+  vertices_->Branch("recy",&recy_pvtx_,"recy/F");
+  vertices_->Branch("recz",&recz_pvtx_,"recz/F");
+  vertices_->Branch("recx_err",&recx_err_pvtx_,"recx_err/F");
+  vertices_->Branch("recy_err",&recy_err_pvtx_,"recy_err/F");
+  vertices_->Branch("recz_err",&recz_err_pvtx_,"recz_err/F");
+  
   // create a TTree for clusters
   clusters_ = dir->make<TTree>("clusters","cluster information");
   clusters_->Branch("eventid",&eventid_,"eventid/i");
   clusters_->Branch("runid",&runid_,"runid/i");
-  clusters_->Branch("lumiSegment",&lumiSegment_,"lumiSegment/s");
-   for(size_t i = 0; i<trackSize; ++i) {
-     char buffer1[256];
-     char buffer2[256];
-     sprintf(buffer1,"trackid%lu",(unsigned long)i);
-     sprintf(buffer2,"trackid%lu/i",(unsigned long)i);
-     clusters_->Branch(buffer1,trackid_+i,buffer2);
-   }
-   clusters_->Branch("onTrack",&onTrack_,"onTrack/O");
-   clusters_->Branch("clWidth",&clWidth_,"clWidth/F");
-   clusters_->Branch("clPosition",&clPosition_,"clPosition/F");
-   clusters_->Branch("clglobalX",&globalX_,"clglobalX/F");
-   clusters_->Branch("clglobalY",&globalY_,"clglobalY/F");
-   clusters_->Branch("clglobalZ",&globalZ_,"clglobalZ/F");
-   clusters_->Branch("angle",&angle_,"angle/F");
-   clusters_->Branch("thickness",&thickness_,"thickness/F");
-   clusters_->Branch("maxCharge",&maxCharge_,"maxCharge/F");
-   clusters_->Branch("clNormalizedCharge",&clNormalizedCharge_,"clNormalizedCharge/F");
-   clusters_->Branch("clNormalizedNoise",&clNormalizedNoise_,"clNormalizedNoise/F");
-   clusters_->Branch("clSignalOverNoise",&clSignalOverNoise_,"clSignalOverNoise/F");
-   clusters_->Branch("clCorrectedCharge",&clCorrectedCharge_,"clCorrectedCharge/F");
-   clusters_->Branch("clCorrectedSignalOverNoise",&clCorrectedSignalOverNoise_,"clCorrectedSignalOverNoise/F");
-   clusters_->Branch("clBareCharge",&clBareCharge_,"clBareCharge/F");
-   clusters_->Branch("clBareNoise",&clBareNoise_,"clBareNoise/F");
-   clusters_->Branch("stripLength",&stripLength_,"stripLength/F");
-   clusters_->Branch("detid",&detid_,"detid/i");
-   clusters_->Branch("lldChannel",&lldChannel_,"lldChannel/s");
-   
-   // create a tree for tracks
-   for(size_t i = 0; i<trackSize; ++i) {
-     char buffer1[256];
-     char buffer2[256];
-     sprintf(buffer1,"tracks%lu",(unsigned long)i);
-     sprintf(buffer2,"track%lu information",(unsigned long)i);
-     TTree* thetracks_ = dir->make<TTree>(buffer1,buffer2);
-     sprintf(buffer1,"trackid%lu",(unsigned long)i);
-     sprintf(buffer2,"trackid%lu/i",(unsigned long)i);
-     thetracks_->Branch(buffer1,globaltrackid_+i,buffer2);
-     thetracks_->Branch("eventid",&eventid_,"eventid/i");
-     thetracks_->Branch("runid",&runid_,"runid/i");
-     thetracks_->Branch("lumiSegment",&lumiSegment_,"lumiSegment/s");
-     thetracks_->Branch("chi2",&chi2_,"chi2/F");
-     thetracks_->Branch("eta",&eta_,"eta/F");
-     thetracks_->Branch("etaerr",&etaerr_,"etaerr/F");
-     thetracks_->Branch("phi",&phi_,"phi/F");
-     thetracks_->Branch("phierr",&phierr_,"phierr/F");
-     thetracks_->Branch("dedx1",&dedx1_,"dedx1/F");
-     thetracks_->Branch("dedx2",&dedx2_,"dedx2/F");
-     thetracks_->Branch("dedx3",&dedx3_,"dedx3/F");
-     thetracks_->Branch("dedxNoM",&dedxNoM_,"dedxNoM/i");
-     thetracks_->Branch("charge",&charge_,"charge/F");
-     thetracks_->Branch("quality",&quality_,"quality/i");
-     thetracks_->Branch("foundhits",&foundhits_,"foundhits/i");
-     thetracks_->Branch("lostHits",&lostHits_,"lostHits/i");
-     thetracks_->Branch("foundhitsStrips",&foundhitsStrips_,"foundhitsStrips/i");
-     thetracks_->Branch("foundhitsPixels",&foundhitsPixels_,"foundhitsPixels/i");
-     thetracks_->Branch("losthitsStrips",&losthitsStrips_,"losthitsStrips/i");
-     thetracks_->Branch("losthitsPixels",&losthitsPixels_,"losthitsPixels/i");
-     thetracks_->Branch("p",&p_,"p/F");
-     thetracks_->Branch("pt",&pt_,"pt/F");
-     thetracks_->Branch("pterr",&pterr_,"pterr/F");
-     thetracks_->Branch("ndof",&ndof_,"ndof/i");
-     thetracks_->Branch("dz",&dz_,"dz/F");
-     thetracks_->Branch("dzerr",&dzerr_,"dzerr/F");
-     thetracks_->Branch("dzCorr",&dzCorr_,"dzCorr/F");
-     thetracks_->Branch("dxy",&dxy_,"dxy/F");
-     thetracks_->Branch("dxyerr",&dxyerr_,"dxyerr/F");
-     thetracks_->Branch("dxyCorr",&dxyCorr_,"dxyCorr/F");
-     thetracks_->Branch("qoverp",&qoverp_,"qoverp/F");
-     thetracks_->Branch("xPCA",&xPCA_,"xPCA/F");
-     thetracks_->Branch("yPCA",&yPCA_,"yPCA/F");
-     thetracks_->Branch("zPCA",&zPCA_,"zPCA/F");
-     thetracks_->Branch("nLayers",&nLayers_,"nLayers/i");
-     thetracks_->Branch("trkWeightpvtx",&trkWeightpvtx_,"trkWeightpvtx/F");
-     thetracks_->Branch("vertexid",&vertexid_,"vertexid/i");
-     tracks_.push_back(thetracks_);
-   }
-
-   // create a tree for the vertices
-   vertices_ = dir->make<TTree>("vertices","vertex information");
-   vertices_->Branch("vertexid",&globalvertexid_,"vertexid/i");
-   vertices_->Branch("eventid",&eventid_,"eventid/i");
-   vertices_->Branch("runid",&runid_,"runid/i");
-   vertices_->Branch("lumiSegment",&lumiSegment_,"lumiSegment/s");
-   vertices_->Branch("nTracks",&nTracks_pvtx_,"nTracks/i");
-   vertices_->Branch("sumptsq",&sumptsq_pvtx_,"sumptsq/F");
-   vertices_->Branch("isValid",&isValid_pvtx_,"isValid/O");
-   vertices_->Branch("isFake",&isFake_pvtx_,"isFake/O");
-   vertices_->Branch("recx",&recx_pvtx_,"recx/F");
-   vertices_->Branch("recy",&recy_pvtx_,"recy/F");
-   vertices_->Branch("recz",&recz_pvtx_,"recz/F");
-   vertices_->Branch("recx_err",&recx_err_pvtx_,"recx_err/F");
-   vertices_->Branch("recy_err",&recy_err_pvtx_,"recy_err/F");
-   vertices_->Branch("recz_err",&recz_err_pvtx_,"recz_err/F");
-
-   // create a tree for the events
-   event_ = dir->make<TTree>("events","event information");
-   event_->Branch("eventid",&eventid_,"eventid/i");
-   event_->Branch("runid",&runid_,"runid/i");
-   event_->Branch("lumiSegment",&lumiSegment_,"lumiSegment/s");
-   event_->Branch("L1DecisionBits","std::vector<bool>",&L1DecisionBits_);
-   event_->Branch("L1TechnicalBits","std::vector<bool>",&L1TechnicalBits_);
-   event_->Branch("orbit",&orbit_,"orbit/i");
-   event_->Branch("orbitL1",&orbitL1_,"orbitL1/i");
-   event_->Branch("bx",&bx_,"bx/i");
-   event_->Branch("store",&store_,"store/i");
-   event_->Branch("time",&time_,"time/i");
-   event_->Branch("delay",&delay_,"delay/F");
-   event_->Branch("physicsDeclared",&physicsDeclared_,"physicsDeclared/s");
-   event_->Branch("HLTDecisionBits","std::vector<bool>",&HLTDecisionBits_);
-   char buffer[256];
-   sprintf(buffer,"ntracks[%lu]/i",(unsigned long)trackSize);
-   event_->Branch("ntracks",ntracks_,buffer);
-   sprintf(buffer,"ntrajs[%lu]/i",(unsigned long)trackSize);
-   event_->Branch("ntrajs",ntrajs_,buffer);
-   sprintf(buffer,"lowPixelProbabilityFraction[%lu]/F",(unsigned long)trackSize);
-   event_->Branch("lowPixelProbabilityFraction",lowPixelProbabilityFraction_,buffer);
-   event_->Branch("nclusters",&nclusters_,"nclusters/i");
-   event_->Branch("npixClusters",&npixClusters_,"npixClusters/i");
-   event_->Branch("nclustersOntrack",&nclustersOntrack_,"nclustersOntrack/i");
-   event_->Branch("npixClustersOntrack",&npixClustersOntrack_,"npixClustersOntrack/i");
-   event_->Branch("bsX0",&bsX0_,"bsX0/F");
-   event_->Branch("bsY0",&bsY0_,"bsY0/F");
-   event_->Branch("bsZ0",&bsZ0_,"bsZ0/F");
-   event_->Branch("bsSigmaZ",&bsSigmaZ_,"bsSigmaZ/F");
-   event_->Branch("bsDxdz",&bsDxdz_,"bsDxdz/F");
-   event_->Branch("bsDydz",&bsDydz_,"bsDydz/F");
-   event_->Branch("nVertices",&nVertices_,"nVertices/i");
-   event_->Branch("thrustValue",&thrustValue_,"thrustValue/F");
-   event_->Branch("thrustX",&thrustX_,"thrustX/F");
-   event_->Branch("thrustY",&thrustY_,"thrustY/F");
-   event_->Branch("thrustZ",&thrustZ_,"thrustZ/F");
-   event_->Branch("sphericity",&sphericity_,"sphericity/F");
-   event_->Branch("planarity",&planarity_,"planarity/F");
-   event_->Branch("aplanarity",&aplanarity_,"aplanarity/F");
-   event_->Branch("MagneticField",&fBz_,"MagneticField/F");
-
-   // cabling
-   readoutmap_ = dir->make<TTree>("readoutMap","cabling map");
-   readoutmap_->Branch("detid",&detid_,"detid/i");
-   readoutmap_->Branch("dcuId",&dcuId_,"dcuId/i");
-   readoutmap_->Branch("fecCrate",&fecCrate_,"fecCrate/s");
-   readoutmap_->Branch("fecSlot",&fecSlot_,"fecSlot/s");
-   readoutmap_->Branch("fecRing",&fecRing_,"fecRing/s");
-   readoutmap_->Branch("ccuAdd",&ccuAdd_,"ccuAdd/s");
-   readoutmap_->Branch("ccuChan",&ccuChan_,"ccuChan/s");
-   readoutmap_->Branch("lldChannel",&lldChannel_,"lldChannel/s");
-   readoutmap_->Branch("fedId",&fedId_,"fedId/s");
-   readoutmap_->Branch("fedCh",&fedCh_,"fedCh/s");
-   readoutmap_->Branch("fiberLength",&fiberLength_,"fiberLength/s");
-   readoutmap_->Branch("moduleName",moduleName_,"moduleName/C");
-   readoutmap_->Branch("moduleId",moduleId_,"moduleId/C");
-   readoutmap_->Branch("delay",&delay_,"delay/F");
-   readoutmap_->Branch("globalX",&globalX_,"globalX/F");
-   readoutmap_->Branch("globalY",&globalY_,"globalY/F");
-   readoutmap_->Branch("globalZ",&globalZ_,"globalZ/F");
+  clusters_->Branch("lumi",&lumisec_,"lumi/i");
+  clusters_->Branch("trackid",&trackid_,"trackid/i");
+  clusters_->Branch("onTrack",&onTrack_,"onTrack/O");
+  clusters_->Branch("clWidth",&clWidth_,"clWidth/F");
+  clusters_->Branch("clPosition",&clPosition_,"clPosition/F");
+  clusters_->Branch("clglobalX",&globalX_,"clglobalX/F");
+  clusters_->Branch("clglobalY",&globalY_,"clglobalY/F");
+  clusters_->Branch("clglobalZ",&globalZ_,"clglobalZ/F");
+  clusters_->Branch("angle",&angle_,"angle/F");
+  clusters_->Branch("thickness",&thickness_,"thickness/F");
+  clusters_->Branch("maxCharge",&maxCharge_,"maxCharge/F");
+  clusters_->Branch("clNormalizedCharge",&clNormalizedCharge_,"clNormalizedCharge/F");
+  clusters_->Branch("clNormalizedNoise",&clNormalizedNoise_,"clNormalizedNoise/F");
+  clusters_->Branch("clSignalOverNoise",&clSignalOverNoise_,"clSignalOverNoise/F");
+  clusters_->Branch("clCorrectedCharge",&clCorrectedCharge_,"clCorrectedCharge/F");
+  clusters_->Branch("clCorrectedSignalOverNoise",&clCorrectedSignalOverNoise_,"clCorrectedSignalOverNoise/F");
+  clusters_->Branch("clBareCharge",&clBareCharge_,"clBareCharge/F");
+  clusters_->Branch("clBareNoise",&clBareNoise_,"clBareNoise/F");
+  clusters_->Branch("stripLength",&stripLength_,"stripLength/F");
+  clusters_->Branch("detid",&detid_,"detid/i");
+  clusters_->Branch("lldChannel",&lldChannel_,"lldChannel/i");
+  
+  // create a tree for tracks   
+  tracks_ = dir->make<TTree>("tracks","tracks information");
+  tracks_->Branch("eventid",&eventid_,"eventid/i");
+  tracks_->Branch("runid",&runid_,"runid/i");
+  tracks_->Branch("lumi",&lumisec_,"lumi/i");
+  tracks_->Branch("trackid",&trackid_,"trackid/i");
+  tracks_->Branch("chi2",&chi2_,"chi2/F");
+  tracks_->Branch("eta",&eta_,"eta/F");
+  tracks_->Branch("etaerr",&etaerr_,"etaerr/F");
+  tracks_->Branch("phi",&phi_,"phi/F");
+  tracks_->Branch("phierr",&phierr_,"phierr/F");
+  tracks_->Branch("dedx1",&dedx1_,"dedx1/F");
+  tracks_->Branch("dedx2",&dedx2_,"dedx2/F");
+  tracks_->Branch("dedx3",&dedx3_,"dedx3/F");
+  tracks_->Branch("dedxNoM",&dedxNoM_,"dedxNoM/i");
+  tracks_->Branch("charge",&charge_,"charge/F");
+  tracks_->Branch("quality",&quality_,"quality/i");
+  tracks_->Branch("foundhits",&foundhits_,"foundhits/i");
+  tracks_->Branch("lostHits",&lostHits_,"lostHits/i");
+  tracks_->Branch("foundhitsStrips",&foundhitsStrips_,"foundhitsStrips/i");
+  tracks_->Branch("foundhitsPixels",&foundhitsPixels_,"foundhitsPixels/i");
+  tracks_->Branch("losthitsStrips",&losthitsStrips_,"losthitsStrips/i");
+  tracks_->Branch("losthitsPixels",&losthitsPixels_,"losthitsPixels/i");
+  tracks_->Branch("p",&p_,"p/F");
+  tracks_->Branch("pt",&pt_,"pt/F");
+  tracks_->Branch("pterr",&pterr_,"pterr/F");
+  tracks_->Branch("ndof",&ndof_,"ndof/i");
+  tracks_->Branch("dz",&dz_,"dz/F");
+  tracks_->Branch("dzerr",&dzerr_,"dzerr/F");
+  tracks_->Branch("dzCorr",&dzCorr_,"dzCorr/F");
+  tracks_->Branch("dxy",&dxy_,"dxy/F");
+  tracks_->Branch("dxyerr",&dxyerr_,"dxyerr/F");
+  tracks_->Branch("dxyCorr",&dxyCorr_,"dxyCorr/F");
+  tracks_->Branch("qoverp",&qoverp_,"qoverp/F");
+  tracks_->Branch("xPCA",&xPCA_,"xPCA/F");
+  tracks_->Branch("yPCA",&yPCA_,"yPCA/F");
+  tracks_->Branch("zPCA",&zPCA_,"zPCA/F");
+  tracks_->Branch("nLayers",&nLayers_,"nLayers/i");
+  tracks_->Branch("trkWeightpvtx",&trkWeightpvtx_,"trkWeightpvtx/F");
+  tracks_->Branch("vertexid",&vertexid_,"vertexid/i");
+  
+  // cabling
+  readoutmap_ = dir->make<TTree>("readoutMap","cabling map");
+  readoutmap_->Branch("detid",&detid_,"detid/i");
+  readoutmap_->Branch("dcuId",&dcuId_,"dcuId/i");
+  readoutmap_->Branch("fecCrate",&fecCrate_,"fecCrate/i");
+  readoutmap_->Branch("fecSlot",&fecSlot_,"fecSlot/i");
+  readoutmap_->Branch("fecRing",&fecRing_,"fecRing/i");
+  readoutmap_->Branch("ccuAdd",&ccuAdd_,"ccuAdd/i");
+  readoutmap_->Branch("ccuChan",&ccuChan_,"ccuChan/i");
+  readoutmap_->Branch("lldChannel",&lldChannel_,"lldChannel/i");
+  readoutmap_->Branch("fedId",&fedId_,"fedId/i");
+  readoutmap_->Branch("fedCh",&fedCh_,"fedCh/i");
+  readoutmap_->Branch("fiberLength",&fiberLength_,"fiberLength/i");
+  readoutmap_->Branch("moduleName",&moduleName_);
+  readoutmap_->Branch("moduleId",&moduleId_);
+  readoutmap_->Branch("delay",&delay_,"delay/F");
+  readoutmap_->Branch("globalX",&globalX_,"globalX/F");
+  readoutmap_->Branch("globalY",&globalY_,"globalY/F");
+  readoutmap_->Branch("globalZ",&globalZ_,"globalZ/F");
 }
+
 
 // ------------ method called once each job just after ending the event loop  ------------
 void TrackerDpgAnalysis::endJob() {  
-  for(size_t i = 0; i<tracks_.size();++i) {
-    char buffer[256];
-    sprintf(buffer,"trackid%lu",(unsigned long)i);
-    if(tracks_[i]->GetEntries()) 
-      tracks_[i]->BuildIndex(buffer,"eventid");
-  }  
-  if(vertices_->GetEntries()) vertices_->BuildIndex("vertexid","eventid");
-  if(event_->GetEntries()) event_->BuildIndex("runid","eventid");
-  if(readoutmap_->GetEntries()) readoutmap_->BuildIndex("detid","lldChannel");
-}
+  /*
+  if(event_ && event_->GetEntries()) 
+    event_->BuildIndex("runid","eventid");
+  if(vertices_ && vertices_->GetEntries()) 
+    vertices_->BuildIndex("vertexid","eventid");
+  if(readoutmap_ && readoutmap_->GetEntries()) 
+    readoutmap_->BuildIndex("detid","lldChannel");
+  if(tracks_ && tracks_->GetEntries()) 
+    tracks_->BuildIndex("trackid","eventid");
+  */
+}  
 
   // build reverse map track -> vertex
-std::map<size_t,int> TrackerDpgAnalysis::inVertex(const reco::TrackCollection& tracks, const reco::VertexCollection& vertices, uint32_t firstVertex){
+std::map<size_t,int> TrackerDpgAnalysis::inVertex(const reco::TrackCollection& tracks, const reco::VertexCollection& vertices, unsigned int firstVertex){
   std::map<size_t,int> output;
-  uint32_t vertexid = firstVertex;
+  unsigned int vertexid = firstVertex;
   for(reco::VertexCollection::const_iterator v = vertices.begin(); v!=vertices.end(); ++v,++vertexid) {
     reco::Vertex::trackRef_iterator it = v->tracks_begin();
     reco::Vertex::trackRef_iterator lastTrack = v->tracks_end();
@@ -896,7 +823,7 @@ std::map<size_t,int> TrackerDpgAnalysis::inVertex(const reco::TrackCollection& t
   return output;
 }
 
-void TrackerDpgAnalysis::insertMeasurement(std::multimap<const uint32_t,std::pair<LocalPoint,double> >& collection,const TransientTrackingRecHit* hit , double tla){
+void TrackerDpgAnalysis::insertMeasurement(std::multimap<const unsigned int,std::pair<LocalPoint,double> >& collection,const TransientTrackingRecHit* hit , double tla){
   if(!hit) return;
   const SiTrackerMultiRecHit* multihit=dynamic_cast<const SiTrackerMultiRecHit*>(hit);
   const SiStripRecHit2D* singlehit=dynamic_cast<const SiStripRecHit2D*>(hit);
@@ -915,7 +842,7 @@ void TrackerDpgAnalysis::insertMeasurement(std::multimap<const uint32_t,std::pai
 }
 
 
-void TrackerDpgAnalysis::insertMeasurement(std::multimap<const uint32_t,std::pair<int, int> >& collection,const TrackingRecHit* hit , int trackid){
+void TrackerDpgAnalysis::insertMeasurement(std::multimap<const unsigned int,std::pair<int, int> >& collection,const TrackingRecHit* hit , int trackid){
   if(!hit) return;
   const SiTrackerMultiRecHit* multihit=dynamic_cast<const SiTrackerMultiRecHit*>(hit);
   const SiStripRecHit2D* singlehit=dynamic_cast<const SiStripRecHit2D*>(hit);
@@ -934,11 +861,11 @@ void TrackerDpgAnalysis::insertMeasurement(std::multimap<const uint32_t,std::pai
 }
 
 std::vector<int> TrackerDpgAnalysis::onTrack(edm::Handle<edmNew::DetSetVector<SiStripCluster> >& clusters,
-					     const reco::TrackCollection& trackVec, uint32_t firstTrack) {
+					     const reco::TrackCollection& trackVec, unsigned int firstTrack) {
   std::vector<int> result;
   // first, build a list of positions and trackid on tracks
-  std::multimap<const uint32_t,std::pair<int,int> > onTrackPositions;
-  uint32_t trackid = firstTrack;
+  std::multimap<const unsigned int,std::pair<int,int> > onTrackPositions;
+  unsigned int trackid = firstTrack;
   for(reco::TrackCollection::const_iterator itTrack = trackVec.begin(); itTrack!=trackVec.end();++itTrack,++trackid) {
     for(trackingRecHit_iterator it = itTrack->recHitsBegin(); it!=itTrack->recHitsEnd(); ++it) {
       const TrackingRecHit* hit = &(**it);
@@ -950,12 +877,12 @@ std::vector<int> TrackerDpgAnalysis::onTrack(edm::Handle<edmNew::DetSetVector<Si
   for (edmNew::DetSetVector<SiStripCluster>::const_iterator DSViter=clusters->begin(); DSViter!=clusters->end();DSViter++ ) {
     edmNew::DetSet<SiStripCluster>::const_iterator begin=DSViter->begin();
     edmNew::DetSet<SiStripCluster>::const_iterator end  =DSViter->end();
-    std::pair< std::multimap<uint32_t,std::pair<int,int> >::const_iterator,
-               std::multimap<uint32_t,std::pair<int,int> >::const_iterator> range =
+    std::pair< std::multimap<unsigned int,std::pair<int,int> >::const_iterator,
+               std::multimap<unsigned int,std::pair<int,int> >::const_iterator> range =
       onTrackPositions.equal_range(DSViter->id());
     for(edmNew::DetSet<SiStripCluster>::const_iterator iter=begin;iter!=end;++iter) {
       thetrackid = -1;
-      for(std::multimap<uint32_t,std::pair<int,int> >::const_iterator cl = range.first; cl!= range.second; ++cl) {
+      for(std::multimap<unsigned int,std::pair<int,int> >::const_iterator cl = range.first; cl!= range.second; ++cl) {
         if(fabs(cl->second.first-iter->barycenter())<2) {
 	  thetrackid = cl->second.second;
 	}
@@ -970,7 +897,7 @@ std::vector<double> TrackerDpgAnalysis::onTrackAngles(edm::Handle<edmNew::DetSet
 						      const std::vector<Trajectory>& trajVec ){
   std::vector<double> result;
   // first, build a list of positions and angles on trajectories
-  std::multimap<const uint32_t,std::pair<LocalPoint,double> > onTrackPositions;
+  std::multimap<const unsigned int,std::pair<LocalPoint,double> > onTrackPositions;
   for(std::vector<Trajectory>::const_iterator traj = trajVec.begin(); traj< trajVec.end(); ++traj) {
     Trajectory::DataContainer measurements = traj->measurements();
     for(Trajectory::DataContainer::iterator meas = measurements.begin(); meas!= measurements.end(); ++meas) {
@@ -983,13 +910,13 @@ std::vector<double> TrackerDpgAnalysis::onTrackAngles(edm::Handle<edmNew::DetSet
   for (edmNew::DetSetVector<SiStripCluster>::const_iterator DSViter=clusters->begin(); DSViter!=clusters->end();DSViter++ ) {
     edmNew::DetSet<SiStripCluster>::const_iterator begin=DSViter->begin();
     edmNew::DetSet<SiStripCluster>::const_iterator end  =DSViter->end();
-    std::pair< std::multimap<uint32_t,std::pair<LocalPoint,double> >::const_iterator,
-               std::multimap<uint32_t,std::pair<LocalPoint,double> >::const_iterator> range =
+    std::pair< std::multimap<unsigned int,std::pair<LocalPoint,double> >::const_iterator,
+               std::multimap<unsigned int,std::pair<LocalPoint,double> >::const_iterator> range =
       onTrackPositions.equal_range(DSViter->id());
     const GeomDetUnit* gdu = static_cast<const GeomDetUnit*>(tracker_->idToDet(DSViter->id()));
     for(edmNew::DetSet<SiStripCluster>::const_iterator iter=begin;iter!=end;++iter) {
       angle = 0.;
-      for(std::multimap<uint32_t,std::pair<LocalPoint,double> >::const_iterator cl = range.first; cl!= range.second; ++cl) {
+      for(std::multimap<unsigned int,std::pair<LocalPoint,double> >::const_iterator cl = range.first; cl!= range.second; ++cl) {
         if(fabs(gdu->topology().measurementPosition(cl->second.first).x()-iter->barycenter())<2) {
 	  angle = cl->second.second;
 	}
@@ -1001,7 +928,7 @@ std::vector<double> TrackerDpgAnalysis::onTrackAngles(edm::Handle<edmNew::DetSet
 }
 
 
-std::string TrackerDpgAnalysis::toStringName(uint32_t rawid, const TrackerTopology* tTopo) {
+std::string TrackerDpgAnalysis::toStringName(unsigned int rawid, const TrackerTopology* tTopo) {
   SiStripDetId detid(rawid);
   std::string out;
   std::stringstream output;
@@ -1087,7 +1014,7 @@ std::string TrackerDpgAnalysis::toStringName(uint32_t rawid, const TrackerTopolo
   return out;
 }
 
-std::string TrackerDpgAnalysis::toStringId(uint32_t rawid) {
+std::string TrackerDpgAnalysis::toStringId(unsigned int rawid) {
   std::string out;
   std::stringstream output;
   output << rawid << " (0x" << std::hex << rawid << std::dec << ")";
@@ -1106,48 +1033,32 @@ double TrackerDpgAnalysis::sumPtSquared(const reco::Vertex & v)  {
 }
 
 // parser of delay file written for the manual delay scan when DB state is uploaded
-std::map<uint32_t,float> TrackerDpgAnalysis::delay(const std::vector<std::string>& files) {
+std::map<unsigned int,float> TrackerDpgAnalysis::delay(const std::string & file) {
 
   // prepare output
-  uint32_t dcuid;
+  unsigned int dcuid;
   float delay;
-  std::map<uint32_t,float> delayMap;
-  //iterator over input files
-  for(std::vector<std::string>::const_iterator file=files.begin();file<files.end();++file){
-    // open the file
-    std::ifstream cablingFile(file->c_str());
-    if(cablingFile.is_open()) {
-      char buffer[1024];
-      // read one line
-      cablingFile.getline(buffer,1024);
-      while(!cablingFile.eof()) {
-	std::string line(buffer);
-	size_t pos = line.find("dcuid");
-	// one line containing dcuid
-	if(pos != std::string::npos) {
-	  // decode dcuid
-	  std::string dcuids = line.substr(pos+7,line.find(" ",pos)-pos-8);
-	  std::istringstream dcuidstr(dcuids);
-	  dcuidstr >> std::hex >> dcuid;
-	  // decode delay
-	  pos = line.find("difpll");
-	  std::string diffs = line.substr(pos+8,line.find(" ",pos)-pos-9);
-	  std::istringstream diffstr(diffs);
-	  diffstr >> delay;	  
-	  // fill the map
-	  delayMap[dcuid] = delay;
-	}
-	// iterate
-	cablingFile.getline(buffer,1024);
-      }
-    } else {
-      edm::LogWarning("BadConfig") << " The delay file does not exist. The delay map will not be filled properly."
-				   << std::endl << " Looking for " << file->c_str() << "."
-				   << std::endl << " Please specify valid filenames through the DelayFileNames untracked parameter.";
+  std::map<unsigned int,float> delayMap;
+  
+  std::ifstream delayInput(file);
+  if(delayInput.is_open()) {
+    std::string line;
+    while(std::getline(delayInput, line)){
+      std::istringstream s (line);
+      std::string field;
+      std::vector<std::string> entries;
+      while(std::getline(s,field,','))
+	entries.push_back(field);
+      std::istringstream dcuidstr (entries.front());
+      std::istringstream delaystr (entries.back());
+      dcuidstr >> dcuid;
+      delaystr >> delay;
+      delayMap[dcuid] = delay;
     }
   }
+  else
+    edm::LogError("BadConfig") << " Delay file cannot be parsed properly .. failing opening therefore please cross-check the setup";
   return delayMap;
 }
-
 //define this as a plug-in
 DEFINE_FWK_MODULE(TrackerDpgAnalysis);

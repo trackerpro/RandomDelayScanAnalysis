@@ -19,7 +19,4 @@ bool countEvents::filter(edm::Event& iEvent, const edm::EventSetup& iSetup) {
   return true;
 }
 
-void countEvents::endJob() {
-}
-
 DEFINE_FWK_MODULE(countEvents);

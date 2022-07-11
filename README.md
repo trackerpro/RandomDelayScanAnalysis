@@ -3,10 +3,14 @@
 ## CMSSW Setup:
 
 ```sh
-cmsrel CMSSW_12_0_3_patch1 ;
-cd CMSSW_12_0_3_patch1/src ;
+cmsrel CMSSW_12_4_2 ;
+cd CMSSW_12_4_2/src ;
 cmsenv;		      
 git-cms-init; 
+git remote add trackerpro-cmssw git@github.com:trackerpro/cmssw.git;
+git fetch trackerpro-cmssw;
+git-cms-addpkg DataFormats/SiStripCommon;
+git-cms-addpkg EventFilter/SiStripRawToDigi;
 git clone git@github.com:trackerpro/RandomDelayScanAnalysis.git TrackerDAQAnalysis/RandomDelayScanAnalysis
 scramv1 b -j 4;					 
 ```
@@ -16,8 +20,8 @@ scramv1 b -j 4;
 * Example on how to run on a couple of input files. Location of streamer file is ```/store/t0streamer/Data/```
     
 ```sh
-cmsRun trackerdpganalysis_cfg.py isRawDAQFile=True globalTag=run3_data_express nThreads=2 inputDirectory=../crab/2021/ inputFiles=/store/t0streamer/Data/Express/000/346/446/run346446_ls0001_streamExpress_StorageManager.dat delayStep=0 triggerList="HLT_HcalNZS*","HLT_L1ETT_ZeroBias*","HLT_PixelClusters_WP1_ZeroBias*" maxEvents=100
-cmsRun trackerdpganalysis_cfg.py isRawDAQFile=True globalTag=run3_data nThreads=2 inputDirectory=../crab/2021/ inputFiles=/store/t0streamer/Data/PhysicsMinimumBias0/000/346/446/run346446_ls0001_streamPhysicsMinimumBias0_StorageManager.dat triggerList="HLT_PixelClusters_WP2_ZeroBias*","HLT_L1ETT_ZeroBias*" maxEvents=100
+cmsRun trackerdpganalysis_cfg.py isRawDAQFile=True globalTag=run3_data_express nThreads=2 inputDelayFile=TrackerDealyMap_Run346446_pll.csv inputFiles=/store/t0streamer/Data/Express/000/346/446/run346446_ls0001_streamExpress_StorageManager.dat delayStep=0 triggerList="HLT_HcalNZS*","HLT_L1ETT_ZeroBias*","HLT_PixelClusters_WP1_ZeroBias*" maxEvents=100
+cmsRun trackerdpganalysis_cfg.py isRawDAQFile=True globalTag=run3_data nThreads=2 inputDelayFile=TrackerDealyMap_Run346446_pll.csv inputFiles=/store/t0streamer/Data/PhysicsMinimumBias0/000/346/446/run346446_ls0001_streamPhysicsMinimumBias0_StorageManager.dat triggerList="HLT_PixelClusters_WP2_ZeroBias*","HLT_L1ETT_ZeroBias*" maxEvents=100
 ```
 
 Trigger that can be requried depending on the output stream can be accessed via OMS for each run number. Above examples are taken for run 346446 taken in fall 2021 at Run3 commissioning startup.
@@ -42,7 +46,7 @@ asgoclient --query "site dataset=/MinimumBias0/Commissioning2021-v1/RAW"
 * if files are on-disk, you can use the following commands:
 
 ```sh
-cmsRun trackerdpganalysis_cfg.py isRawEDMFile=True globalTag=run3_data nThreads=2 inputDirectory=../crab/2021/ inputFiles=<file location> triggerList="HLT_PixelClusters_WP2_ZeroBias*","HLT_L1ETT_ZeroBias*" maxEvents=100
+cmsRun trackerdpganalysis_cfg.py isRawEDMFile=True globalTag=run3_data nThreads=2 inputDelayFile=TrackerDealyMap_Run346446_pll.csv inputFiles=<file location> triggerList="HLT_PixelClusters_WP2_ZeroBias*","HLT_L1ETT_ZeroBias*" maxEvents=100
 ```
 
 * Submit jobs via lxbatch (condorHT) on these streamer files are not published in crab:
@@ -63,7 +67,7 @@ dasgoclient --query "site dataset=/ExpressPhysics/Commissioning2021-Express-v1/F
 * If files are on-disk, you can use the following commands:
 
 ```sh
-cmsRun trackerdpganalysis_cfg.py globalTag=run3_data_express nThreads=2 inputDirectory=../crab/2021/ inputFiles=/store/express/Commissioning2021/ExpressPhysics/FEVT/Express-v1/000/346/446/00000/0455c1c4-357f-434c-951f-ab6f2ba98683.root delayStep=0 triggerList="HLT_HcalNZS*","HLT_L1ETT_ZeroBias*","HLT_PixelClusters_WP1_ZeroBias*" maxEvents=100
+cmsRun trackerdpganalysis_cfg.py globalTag=run3_data_express nThreads=2 inputDelayFile=TrackerDealyMap_Run346446_pll.csv inputFiles=/store/express/Commissioning2021/ExpressPhysics/FEVT/Express-v1/000/346/446/00000/0455c1c4-357f-434c-951f-ab6f2ba98683.root delayStep=0 triggerList="HLT_HcalNZS*","HLT_L1ETT_ZeroBias*","HLT_PixelClusters_WP1_ZeroBias*" maxEvents=100
 ```
     
 * To run crab jobs: 

@@ -2,14 +2,14 @@
 #define countEvents_h
 
 #include <iostream>
-#include "FWCore/Framework/interface/EDFilter.h"
+#include "FWCore/Framework/interface/stream/EDFilter.h"
 #include "FWCore/Framework/interface/Event.h"
 #include "FWCore/Framework/interface/Frameworkfwd.h"
 #include "FWCore/Framework/interface/MakerMacros.h"
 #include "FWCore/ParameterSet/interface/ParameterSet.h"
 #include "FWCore/ServiceRegistry/interface/Service.h"
 
-class countEvents : public edm::EDFilter {
+class countEvents : public edm::stream::EDFilter<> {
  
  public:
  
@@ -23,7 +23,6 @@ class countEvents : public edm::EDFilter {
  
   //! the actual filter method 
   bool filter(edm::Event&, const edm::EventSetup&);
-  virtual void endJob() override ;
  
  private:
 };

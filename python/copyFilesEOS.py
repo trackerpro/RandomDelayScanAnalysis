@@ -15,11 +15,8 @@ from subprocess import Popen
 ############################################
 #            Job steering                  #
 ############################################
-
 parser = OptionParser()
-
 parser.add_option('-b', action='store_true', dest='noX', default=False, help='no X11 windows')
-
 ## parse files
 parser.add_option('--inputDIR',     action="store", type="string", dest="inputDIR",      default="",   help="input directory where files are located on eos")
 parser.add_option('--nStreams',     action="store", type=int,      dest="nStreams",      default=3,    help="number of parallel streams")

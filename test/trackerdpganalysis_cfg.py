@@ -4,9 +4,6 @@ import FWCore.ParameterSet.Config as cms
 from FWCore.ParameterSet.VarParsing import VarParsing
 options = VarParsing ('python')
 
-options.register ('delayStep',0,VarParsing.multiplicity.singleton,VarParsing.varType.int,
-                  'integer numer to identify the delay xml for each partition');
-
 options.register ('ouputFileName',"trackerDPG.root",VarParsing.multiplicity.singleton,VarParsing.varType.string,
                   'name of the outtput root file');
 
@@ -25,8 +22,8 @@ options.register ('globalTag',"run3_data_express",VarParsing.multiplicity.single
 options.register ('nThreads',1,VarParsing.multiplicity.singleton,VarParsing.varType.int,
                   'Number of threads in the processing')
 
-options.register ('inputDirectory',"",VarParsing.multiplicity.singleton,VarParsing.varType.string,
-                  'directory where the xml files with the delays are stored')
+options.register ('inputDelayFile',"",VarParsing.multiplicity.singleton,VarParsing.varType.string,
+                  'file with PLL delays')
 
 options.register ('triggerList','',VarParsing.multiplicity.list,
                   VarParsing.varType.string,"List of HLT trigger paths to require")
@@ -47,14 +44,15 @@ process.MessageLogger.cerr.FwkReport.reportEvery = 100
 
 process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(options.maxEvents) )
 
-if not options.isRawDAQFile:
-    process.source = cms.Source ("PoolSource", 
-                                 fileNames = cms.untracked.vstring(options.inputFiles))
-else:
+## use the right source depending on the type of input
+if options.isRawDAQFile:
     process.source = cms.Source("NewEventStreamFileReader",
                                 fileNames = cms.untracked.vstring(options.inputFiles))
+else:
+    process.source = cms.Source ("PoolSource", 
+                                 fileNames = cms.untracked.vstring(options.inputFiles))
 
-
+## process only events within the range
 if options.eventRange:
     process.source.eventsToProcess = cms.untracked.VEventRange(options.eventRange);
 
@@ -79,13 +77,13 @@ process.load("RecoTracker.MeasurementDet.MeasurementTrackerEventProducer_cfi")
 process.load('RecoTracker.DeDx.dedxEstimators_cff')
 
 ### to select a specific set of triggers --> if one runs on the streamer files at T0 is no needed
-process.hltfiter = cms.EDFilter("HLTHighLevel",
-  TriggerResultsTag = cms.InputTag("TriggerResults","","HLT"),
-  HLTPaths = cms.vstring(options.triggerList),
-  throw = cms.bool(True),
-  andOr = cms.bool(True) ## logical OR between trigger bits                               
-)
-
+if not options.triggerList:
+    process.hltfiter = cms.EDFilter("HLTHighLevel",
+                                    TriggerResultsTag = cms.InputTag("TriggerResults","","HLT"),
+                                    HLTPaths = cms.vstring(options.triggerList),
+                                    throw = cms.bool(True),
+                                    andOr = cms.bool(True) ## logical OR between trigger bits                               
+                                )
 
 ### output file definition
 process.TFileService = cms.Service("TFileService",
@@ -113,6 +111,12 @@ if not options.isRawDAQFile and not options.isRawEDMFile:
     process.dedxHitInfo.tracks     = "generalTracksFromRefit"
     process.dedxPixelHarmonic2.tracks  = "generalTracksFromRefit"
     process.dedxPixelAndStripHarmonic2T085.tracks  = "generalTracksFromRefit"
+
+    process.load("EventFilter.SiStripRawToDigi.FedChannelDigis_cfi")
+    process.FedChannelDigis.UnpackBadChannels = cms.bool(True)
+    process.FedChannelDigis.DoAPVEmulatorCheck = cms.bool(True)
+    process.FedChannelDigis.ProductLabel = cms.InputTag('rawDataCollector')
+    process.FedChannelDigis.LegacyUnpacker = cms.bool(False)
 
 ### run the tracking step on top of raw DAQ files
 elif options.isRawDAQFile or options.isRawEDMFile:
@@ -142,9 +146,11 @@ elif options.isRawDAQFile or options.isRawEDMFile:
     process.detachedQuadStepTracks.TrajectoryInEvent = cms.bool(True);
 
 ### Main Analyzer
+
 process.analysis = cms.EDAnalyzer('TrackerDpgAnalysis',
                                   ClustersLabel = cms.InputTag("siStripClusters"),
-                                  TracksLabel   = cms.VInputTag( cms.InputTag("generalTracksFromRefit")), 
+                                  TracksLabel   = cms.InputTag("generalTracksFromRefit"), 
+                                  StripEventSummary = cms.InputTag("FedChannelDigis"),
                                   vertexLabel   = cms.InputTag('offlinePrimaryVertices'),
                                   beamSpotLabel = cms.InputTag('offlineBeamSpot'),
                                   DeDx1Label    = cms.InputTag('dedxHarmonic2'),
@@ -152,64 +158,56 @@ process.analysis = cms.EDAnalyzer('TrackerDpgAnalysis',
                                   DeDx3Label    = cms.InputTag('dedxMedian'),
                                   L1Label       = cms.InputTag('gtDigis'),
                                   HLTLabel      = cms.InputTag("TriggerResults::HLT"),
+                                  HLTNames      = cms.vstring(options.triggerList),
                                   InitalCounter = cms.uint32(1),
                                   keepOntrackClusters  = cms.untracked.bool(True),
                                   keepOfftrackClusters = cms.untracked.bool(False),
                                   keepTracks           = cms.untracked.bool(True),
                                   keepVertices         = cms.untracked.bool(True),
                                   keepEvents           = cms.untracked.bool(True),
-                                  DelayFileNames = cms.untracked.vstring(
-                                      "TI_27-JAN-2010_2_delayStep_"+str(options.delayStep)+".xml",
-                                      "TO_30-JUN-2009_1_delayStep_"+str(options.delayStep)+".xml",
-                                      "TP_09-JUN-2009_1_delayStep_"+str(options.delayStep)+".xml",
-                                      "TM_09-JUN-2009_1_delayStep_"+str(options.delayStep)+".xml",
-                                  ),
+                                  DelayFileName = cms.string(options.inputDelayFile),                                  
 )
 
 
-
 if  options.isRawDAQFile or options.isRawEDMFile: 
-    process.analysis.TracksLabel = cms.VInputTag(cms.InputTag("generalTracks"))
+    process.analysis.TracksLabel = cms.InputTag("generalTracks")
 
 if options.jsonFile: ### to be checked / created by hand when the runs are take
     process.source.lumisToProcess = LumiList.LumiList(filename = options.jsonFile).getVLuminosityBlockRange()
-
-if options.inputDirectory != "":
-    for string in range(len(process.analysis.DelayFileNames)) :
-        process.analysis.DelayFileNames[string] = options.inputDirectory+"/"+process.analysis.DelayFileNames[string];
-    if options.jsonFile: ### to be checked / created by hand when the runs are take
-        process.source.lumisToProcess = LumiList.LumiList(filename = options.inputDirectory+"/"+options.jsonFile).getVLuminosityBlockRange()
-
 
 process.edTask = cms.Task()
 
 ### Define the Path to be executed
 if options.isRawDAQFile or options.isRawEDMFile:
-
     process.doAlldEdXEstimators += process.dedxMedian
-
     process.edTask.add(process.globalreco_trackingTask);
     process.edTask.add(process.localrecoTask);
     process.edTask.add(process.RawToDigiTask);
     process.edTask.add(process.dedxMedian);
-
-    process.p = cms.Path(
-        process.hltfiter*  ## HLT skim                                                                                                                                            
-        process.analysis,process.edTask)
+    if not options.triggerList:
+        process.p = cms.Path(
+            process.hltfiter*  ## HLT skim                                                                                                                                            
+            process.analysis,process.edTask)
+    else:
+        process.p = cms.Path(
+            process.analysis,process.edTask)
 
 else: ## in this case one just need to re-fit the tracks
-
     process.edTask.add(process.generalTracksFromRefit);
     process.edTask.add(process.TrackRefitter);
     process.edTask.add(process.dedxMedian);
     process.edTask.add(process.doAlldEdXEstimatorsTask);
+    process.edTask.add(process.FedChannelDigis);
 
-    process.p = cms.Path(
-        process.hltfiter*  ## HLT skim
-        process.analysis,process.edTask)
+    if not options.triggerList:
+        process.p = cms.Path(
+            process.hltfiter*  ## HLT skim
+            process.analysis,process.edTask)
+    else:
+        process.p = cms.Path(
+            process.analysis,process.edTask)
 
 process.schedule = cms.Schedule(process.p);
-
 
 from PhysicsTools.PatAlgos.tools.helpers import associatePatAlgosToolsTask
 associatePatAlgosToolsTask(process)
