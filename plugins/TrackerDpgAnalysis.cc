@@ -106,7 +106,7 @@ public:
 protected:
 
   // vertex function
-  std::map<size_t,int> inVertex(const reco::TrackCollection&, const reco::VertexCollection&, unsigned int);
+  std::map<size_t,int> inVertex(const reco::VertexCollection&, unsigned int);
   double sumPtSquared(const reco::Vertex&);
   
   // strip cluster ontrack
@@ -246,7 +246,6 @@ TrackerDpgAnalysis::TrackerDpgAnalysis(const edm::ParameterSet& iConfig):
   HLTTag_          = iConfig.getParameter<edm::InputTag>("HLTLabel");
   HLTToken_        = consumes<edm::TriggerResults>(HLTTag_);
   hltNames_        = iConfig.getParameter<std::vector<std::string> >("HLTNames");
-  globalvertexid_  = iConfig.getParameter<unsigned int>("InitalCounter");
   delayFileName_   = iConfig.getParameter<std::string>("DelayFileName");
 
 }
@@ -257,299 +256,283 @@ TrackerDpgAnalysis::~TrackerDpgAnalysis()
 
 // ------------ method called to for each event  ------------
 void
-TrackerDpgAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
-{
-   using namespace edm;
-   using namespace reco;
-   using namespace std;
-   using reco::TrackCollection;
+TrackerDpgAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup){
 
-   // load event info
-   eventid_     = iEvent.id().event();
-   runid_       = iEvent.id().run();
-   lumisec_     = iEvent.eventAuxiliary().luminosityBlock();
-   bx_          = iEvent.eventAuxiliary().bunchCrossing();
-   orbit_       = iEvent.eventAuxiliary().orbitNumber();
-   store_       = iEvent.eventAuxiliary().storeNumber();
-   time_        = iEvent.eventAuxiliary().time().value();
+  using namespace edm;
+  using namespace reco;
+  using namespace std;
+  using reco::TrackCollection;
+  
+  // Sistrip summary
+  edm::Handle<SiStripEventSummary> summary;
+  iEvent.getByToken(stripEventSummaryToken_, summary);
+  
+  // Trigger info
+  edm::Handle<L1GlobalTriggerReadoutRecord> gtrr_handle;
+  iEvent.getByToken(L1Token_, gtrr_handle);
+  const L1GlobalTriggerReadoutRecord* gtrr = gtrr_handle.product();
+  L1GtFdlWord fdlWord = gtrr->gtFdlWord();
+  
+  edm::Handle<edm::TriggerResults> trh;
+  iEvent.getByToken(HLTToken_, trh);
+  
+  // load beamspot
+  edm::Handle<reco::BeamSpot> recoBeamSpotHandle;
+  iEvent.getByToken(bsToken_,recoBeamSpotHandle);
+  reco::BeamSpot bs = *recoBeamSpotHandle;
+  
+  // load primary vertex
+  edm::Handle<reco::VertexCollection> vertexCollectionHandle;
+  iEvent.getByToken(vertexToken_,vertexCollectionHandle);
+  const reco::VertexCollection vertexColl = *(vertexCollectionHandle.product());
+  
+  // load dedx info
+  Handle<ValueMap<DeDxData> > dEdx1Handle;
+  Handle<ValueMap<DeDxData> > dEdx2Handle;
+  Handle<ValueMap<DeDxData> > dEdx3Handle;
+  try {iEvent.getByToken(dedx1Token_, dEdx1Handle);} catch ( cms::Exception& ) {;}
+  try {iEvent.getByToken(dedx2Token_, dEdx2Handle);} catch ( cms::Exception& ) {;}
+  try {iEvent.getByToken(dedx3Token_, dEdx3Handle);} catch ( cms::Exception& ) {;}
+  const ValueMap<DeDxData> dEdxTrack1 = *dEdx1Handle.product();
+  const ValueMap<DeDxData> dEdxTrack2 = *dEdx2Handle.product();
+  const ValueMap<DeDxData> dEdxTrack3 = *dEdx3Handle.product();
 
-   // SiStrip cluster
-   siStripClusterInfo_.initEvent(iSetup);
-
-   // -- Magnetic field
-   fBz_ = fabs(iSetup.getData(magFieldToken_).inTesla(GlobalPoint(0, 0, 0)).z());
-
-   // delay scan step
-   edm::Handle<SiStripEventSummary> summary;
-   iEvent.getByToken(stripEventSummaryToken_, summary);
-   runtype_ = static_cast<unsigned int>(summary->runType());
-   fedreadout_ = summary->fedReadoutMode();
-   delayrange_ = summary->randomDelayRange();
-   delaystepsize_ = summary->randomDelayStepSize();
-   delaystep_ = summary->randomDelayStep();
+  // load track collections
+  reco::TrackCollection trackCollection;
+  edm::Handle<reco::TrackCollection> trackCollectionHandle;
+  iEvent.getByToken(trackTokens_,trackCollectionHandle);
+  trackCollection = *trackCollectionHandle.product();
+  ntracks_ = trackCollection.size();
+  
+  // load the trajectory collections
+  std::vector<Trajectory> trajectoryCollection;
+  edm::Handle<std::vector<Trajectory> > trajectoryCollectionHandle;
+  iEvent.getByToken(trajectoryTokens_,trajectoryCollectionHandle);
+  trajectoryCollection = *trajectoryCollectionHandle.product();
+  ntrajs_ = trajectoryCollection.size();
+  
+  // load the tracks/traj association maps
+  TrajTrackAssociationCollection TrajToTrackMap;
+  Handle<TrajTrackAssociationCollection> trajTrackAssociationHandle;
+  iEvent.getByToken(trajTrackAssoTokens_,trajTrackAssociationHandle);
+  TrajToTrackMap = *trajTrackAssociationHandle.product();
+  
+   // load the clusters
+  edm::Handle<edmNew::DetSetVector<SiStripCluster> > clusters;
+  iEvent.getByToken(clusterToken_,clusters);
+  
+  // sanity check
+  if(!(!trackCollection.empty() && !trajectoryCollection.empty())){
+    edm::LogError("BadConfig") << " the track and trajectory collections are empty --> please check ";
+    return;
+  }
+  
+  // SiStrip cluster
+  siStripClusterInfo_.initEvent(iSetup);
+  
+  eventid_     = iEvent.id().event();
+  runid_       = iEvent.id().run();
+  lumisec_     = iEvent.eventAuxiliary().luminosityBlock();
+  
+  // determine if each cluster is on a track or not, and record the trackid
+  std::vector<int> stripClusterOntrackIndices = onTrack(clusters,trackCollection,globaltrackid_+1);
+  nclustersOntrack_ = std::count_if(stripClusterOntrackIndices.begin(),stripClusterOntrackIndices.end(),bind2nd(not_equal_to<int>(), -1));
+  
+  // load event info
+  bx_          = iEvent.eventAuxiliary().bunchCrossing();
+  orbit_       = iEvent.eventAuxiliary().orbitNumber();
+  store_       = iEvent.eventAuxiliary().storeNumber();
+  time_        = iEvent.eventAuxiliary().time().value();
+  fBz_         = fabs(iSetup.getData(magFieldToken_).inTesla(GlobalPoint(0, 0, 0)).z());
+  
+  if(recoBeamSpotHandle.isValid()) {
+    bsX0_ = bs.x0();
+    bsY0_ = bs.y0();
+    bsZ0_ = bs.z0();
+    bsSigmaZ_ = bs.sigmaZ();
+    bsDxdz_ = bs.dxdz();
+    bsDydz_ = bs.dydz();
+  } else {
+    bsX0_ = 0.;
+    bsY0_ = 0.;
+    bsZ0_ = 0.;
+    bsSigmaZ_ = 0.;
+    bsDxdz_ = 0.;
+    bsDydz_ = 0.;
+  }
+  
+  runtype_     = static_cast<unsigned int>(summary->runType());
+  fedreadout_  = summary->fedReadoutMode();
+  delayrange_  = summary->randomDelayRange();
+  delaystepsize_ = summary->randomDelayStepSize();
+  delaystep_   = summary->randomDelayStep();
+  
+  orbitL1_         = fdlWord.orbitNr();
+  physicsDeclared_ = fdlWord.physicsDeclared();     
+  hltTriggerBits_.clear();
+  hltTriggerNames_.clear();
+  for(auto key : triggerPathsMap){
+    hltTriggerNames_.push_back(key.first);
+    hltTriggerBits_.push_back(trh->accept(key.second));
+  }
    
-   // load trigger info
-   edm::Handle<L1GlobalTriggerReadoutRecord> gtrr_handle;
-   iEvent.getByToken(L1Token_, gtrr_handle);
-   const L1GlobalTriggerReadoutRecord* gtrr = gtrr_handle.product();
-   L1GtFdlWord fdlWord = gtrr->gtFdlWord();
-   orbitL1_ = fdlWord.orbitNr();
-   physicsDeclared_ = fdlWord.physicsDeclared();
+  nVertices_ = 0;
+  for(reco::VertexCollection::const_iterator v=vertexColl.begin(); v!=vertexColl.end(); ++v) {
+    if(v->isValid() && !v->isFake()) 
+      ++nVertices_;
+  }
+  
+  // iterate over vertices
+  std::map<size_t,int> trackVertices = inVertex(vertexColl, globalvertexid_+1);
+  for(reco::VertexCollection::const_iterator v=vertexColl.begin(); v!=vertexColl.end(); ++v) {
+    nTracks_pvtx_ = v->tracksSize();
+    sumptsq_pvtx_ = sumPtSquared(*v);
+    isValid_pvtx_ = int(v->isValid());
+    isFake_pvtx_ =  int(v->isFake());
+    recx_pvtx_ = v->x();
+    recy_pvtx_ = v->y();
+    recz_pvtx_ = v->z();
+    recx_err_pvtx_ = v->xError();
+    recy_err_pvtx_ = v->yError();
+    recz_err_pvtx_ = v->zError();
+    globalvertexid_++;
+    if(functionality_vertices_)
+      vertices_->Fill();
+  }
 
-   edm::Handle<edm::TriggerResults> trh;
-   iEvent.getByToken(HLTToken_, trh);
-   hltTriggerBits_.clear();
-   hltTriggerNames_.clear();
-   if(functionality_events_){
-     for(auto key : triggerPathsMap){
-       hltTriggerNames_.push_back(key.first);
-       hltTriggerBits_.push_back(trh->accept(key.second));
-     }
-   }
+  // iterate over tracks
+  const Point beamSpot = recoBeamSpotHandle.isValid() ? Point(recoBeamSpotHandle->x0(), recoBeamSpotHandle->y0(), recoBeamSpotHandle->z0()) : Point(0, 0, 0);
+  
+  // Save track info
+  lowPixelProbabilityFraction_ = 0;
+  unsigned int n_hits_barrel = 0;
+  unsigned int n_hits_lowprob = 0;
+  for(TrajTrackAssociationCollection::const_iterator it = TrajToTrackMap.begin(); it!=TrajToTrackMap.end(); ++it) {       
+    reco::TrackRef itTrack  = it->val;
+    edm::Ref<std::vector<Trajectory> > traj  = it->key; // bug to find type of the key
+    //associate with PV
+    std::map<size_t,int>::const_iterator theV = trackVertices.find(itTrack.key());
+    vertexid_ = (theV!=trackVertices.end()) ? theV->second : 0;
+    globaltrackid_++;
+    try { // not all track collections have the dedx info... indeed at best one.
+      dedxNoM_ = dEdxTrack1[itTrack].numberOfMeasurements();
+      dedx1_ = dEdxTrack1[itTrack].dEdx();
+      dedx2_ = dEdxTrack2[itTrack].dEdx();
+      dedx3_ = dEdxTrack3[itTrack].dEdx();
+    } catch ( cms::Exception& ) {
+      dedxNoM_ = 0;
+      dedx1_ = 0.;
+      dedx2_ = 0.;
+      dedx3_ = 0.;
+    }
+    p_     = itTrack->p();
+    pt_    = itTrack->pt();
+    eta_   = itTrack->eta();
+    phi_   = itTrack->phi();
+    charge_    = itTrack->charge();
+    quality_   = itTrack->qualityMask();
+    foundhits_ = itTrack->found();
+    lostHits_  = itTrack->lost();
+    foundhitsStrips_ =  itTrack->hitPattern().numberOfValidStripHits();
+    foundhitsPixels_ =  itTrack->hitPattern().numberOfValidPixelHits();
+    losthitsStrips_  =  itTrack->hitPattern().numberOfLostStripHits(reco::HitPattern::TRACK_HITS);
+    losthitsPixels_  =  itTrack->hitPattern().numberOfLostPixelHits(reco::HitPattern::TRACK_HITS);
+    nLayers_         =  itTrack->hitPattern().trackerLayersWithMeasurement();
+    chi2_    = itTrack->chi2();
+    ndof_    = itTrack->ndof();
+    dz_      = itTrack->dz();
+    dzerr_   = itTrack->dzError();
+    dzCorr_  = itTrack->dz(beamSpot);
+    dxy_     = itTrack->dxy();
+    dxyerr_  = itTrack->dxyError();
+    dxyCorr_ = itTrack->dxy(beamSpot);
+    pterr_   = itTrack->ptError();
+    etaerr_  = itTrack->etaError();
+    phierr_  = itTrack->phiError();
+    qoverp_  = itTrack->qoverp();
+    xPCA_    = itTrack->vertex().x();
+    yPCA_    = itTrack->vertex().y();
+    zPCA_    = itTrack->vertex().z();
+    
+    try { // only one track collection (at best) is connected to the main vertex
+      if(!vertexColl.empty() && !vertexColl.begin()->isFake()) {
+	trkWeightpvtx_ = vertexColl.begin()->trackWeight(itTrack);
+      } else
+	trkWeightpvtx_ = 0.;
+    } catch ( cms::Exception& ) {
+      trkWeightpvtx_ = 0.;
+    }
+     // compute the fraction of low probability pixels... will be added to the event tree
+    for(trackingRecHit_iterator it = itTrack->recHitsBegin(); it!=itTrack->recHitsEnd(); ++it) {
+      const TrackingRecHit* hit = &(**it);
+      const SiPixelRecHit* pixhit = dynamic_cast<const SiPixelRecHit*>(hit);
+      if(pixhit) {
+	DetId detId = pixhit->geographicalId();
+	if(detId.subdetId() == PixelSubdetector::PixelBarrel) {
+	  ++n_hits_barrel;
+	  double proba = pixhit->clusterProbability(0);
+	  if(proba<=0.0) ++n_hits_lowprob;
+	}
+      }
+    }
+    if(functionality_tracks_)
+      tracks_->Fill();
+  }
+  lowPixelProbabilityFraction_ = n_hits_barrel>0 ? (float)n_hits_lowprob/n_hits_barrel : -1.;
+  
+  // iterate over clusters
+  unsigned int localCounter = 0;
+  nclusters_ = 0;
+  std::vector<double> clusterOntrackAngles = onTrackAngles(clusters,trajectoryCollection);
+  std::vector<double>::const_iterator angleIt = clusterOntrackAngles.begin();     
 
-   // load beamspot
-   edm::Handle<reco::BeamSpot> recoBeamSpotHandle;
-   iEvent.getByToken(bsToken_,recoBeamSpotHandle);
-   reco::BeamSpot bs = *recoBeamSpotHandle;
-
-   if(recoBeamSpotHandle.isValid()) {
-     bsX0_ = bs.x0();
-     bsY0_ = bs.y0();
-     bsZ0_ = bs.z0();
-     bsSigmaZ_ = bs.sigmaZ();
-     bsDxdz_ = bs.dxdz();
-     bsDydz_ = bs.dydz();
-   } else {
-     bsX0_ = 0.;
-     bsY0_ = 0.;
-     bsZ0_ = 0.;
-     bsSigmaZ_ = 0.;
-     bsDxdz_ = 0.;
-     bsDydz_ = 0.;
-   }
-
-   // load primary vertex
-   static const reco::VertexCollection s_empty_vertexColl;
-   edm::Handle<reco::VertexCollection> vertexCollectionHandle;
-   iEvent.getByToken(vertexToken_,vertexCollectionHandle);
-   const reco::VertexCollection vertexColl = *(vertexCollectionHandle.product());
-   nVertices_ = 0;
-   if(functionality_vertices_){
-     for(reco::VertexCollection::const_iterator v=vertexColl.begin();
-	 v!=vertexColl.end(); ++v) {
-       if(v->isValid() && !v->isFake()) ++nVertices_;
-     }
-   }
-   
-    // load the clusters
-   edm::Handle<edmNew::DetSetVector<SiStripCluster> > clusters;
-   iEvent.getByToken(clusterToken_,clusters);
-
-   // load dedx info
-   Handle<ValueMap<DeDxData> > dEdx1Handle;
-   Handle<ValueMap<DeDxData> > dEdx2Handle;
-   Handle<ValueMap<DeDxData> > dEdx3Handle;
-   try {iEvent.getByToken(dedx1Token_, dEdx1Handle);} catch ( cms::Exception& ) {;}
-   try {iEvent.getByToken(dedx2Token_, dEdx2Handle);} catch ( cms::Exception& ) {;}
-   try {iEvent.getByToken(dedx3Token_, dEdx3Handle);} catch ( cms::Exception& ) {;}
-   const ValueMap<DeDxData> dEdxTrack1 = *dEdx1Handle.product();
-   const ValueMap<DeDxData> dEdxTrack2 = *dEdx2Handle.product();
-   const ValueMap<DeDxData> dEdxTrack3 = *dEdx3Handle.product();
-
-   // load track collections
-   reco::TrackCollection trackCollection;
-   edm::Handle<reco::TrackCollection> trackCollectionHandle;
-   iEvent.getByToken(trackTokens_,trackCollectionHandle);
-   trackCollection = *trackCollectionHandle.product();
-   ntracks_ = trackCollection.size();
-
-   // load the trajectory collections
-   std::vector<Trajectory> trajectoryCollection;
-   edm::Handle<std::vector<Trajectory> > trajectoryCollectionHandle;
-   iEvent.getByToken(trajectoryTokens_,trajectoryCollectionHandle);
-   trajectoryCollection = *trajectoryCollectionHandle.product();
-   ntrajs_ = trajectoryCollection.size();
-
-   // load the tracks/traj association maps
-   TrajTrackAssociationCollection TrajToTrackMap;
-   Handle<TrajTrackAssociationCollection> trajTrackAssociationHandle;
-   iEvent.getByToken(trajTrackAssoTokens_,trajTrackAssociationHandle);
-   TrajToTrackMap = *trajTrackAssociationHandle.product();
-
-   // sanity check
-   if(!(!trackCollection.empty() && !trajectoryCollection.empty())){
-     edm::LogError("BadConfig") << " the track and trajectory collections are empty --> please check ";
-     return;
-   }
-
-   // build the reverse map tracks -> vertex
-   std::map<size_t,int> trackVertices = inVertex(trackCollection, vertexColl, globalvertexid_+1);
-   
-   // iterate over vertices
-   if(functionality_vertices_) {
-     for(reco::VertexCollection::const_iterator v=vertexColl.begin(); v!=vertexColl.end(); ++v) {
-       nTracks_pvtx_ = v->tracksSize();
-       sumptsq_pvtx_ = sumPtSquared(*v);
-       isValid_pvtx_ = int(v->isValid());
-       isFake_pvtx_ =  int(v->isFake());
-       recx_pvtx_ = v->x();
-       recy_pvtx_ = v->y();
-       recz_pvtx_ = v->z();
-       recx_err_pvtx_ = v->xError();
-       recy_err_pvtx_ = v->yError();
-       recz_err_pvtx_ = v->zError();
-       globalvertexid_++;
-       vertices_->Fill();
-     }
-   }
-
-   // determine if each cluster is on a track or not, and record the trackid
-   std::vector<int> stripClusterOntrackIndices;
-   if(functionality_events_){
-     stripClusterOntrackIndices = onTrack(clusters,trackCollection,globaltrackid_+1);
-     nclustersOntrack_ = std::count_if(stripClusterOntrackIndices.begin(),stripClusterOntrackIndices.end(),bind2nd(not_equal_to<int>(), -1));
-   }
-   
-   // iterate over tracks
-   const Point beamSpot = recoBeamSpotHandle.isValid() ? Point(recoBeamSpotHandle->x0(), recoBeamSpotHandle->y0(), recoBeamSpotHandle->z0()) : Point(0, 0, 0);
-   // Save track info
-   lowPixelProbabilityFraction_ = 0;
-   if(functionality_tracks_){     
-     unsigned int n_hits_barrel = 0;
-     unsigned int n_hits_lowprob = 0;
-     for(TrajTrackAssociationCollection::const_iterator it = TrajToTrackMap.begin(); it!=TrajToTrackMap.end(); ++it) {       
-       reco::TrackRef itTrack  = it->val;
-       edm::Ref<std::vector<Trajectory> > traj  = it->key; // bug to find type of the key
-       eta_   = itTrack->eta();
-       phi_   = itTrack->phi();
-       try { // not all track collections have the dedx info... indeed at best one.
-	 dedxNoM_ = dEdxTrack1[itTrack].numberOfMeasurements();
-	 dedx1_ = dEdxTrack1[itTrack].dEdx();
-	 dedx2_ = dEdxTrack2[itTrack].dEdx();
-	 dedx3_ = dEdxTrack3[itTrack].dEdx();
-       } catch ( cms::Exception& ) {
-	 dedxNoM_ = 0;
-	 dedx1_ = 0.;
-	 dedx2_ = 0.;
-	 dedx3_ = 0.;
-       }
-       charge_    = itTrack->charge();
-       quality_   = itTrack->qualityMask();
-       foundhits_ = itTrack->found();
-       lostHits_  = itTrack->lost();
-       foundhitsStrips_ =  itTrack->hitPattern().numberOfValidStripHits();
-       foundhitsPixels_ =  itTrack->hitPattern().numberOfValidPixelHits();
-       losthitsStrips_  =  itTrack->hitPattern().numberOfLostStripHits(reco::HitPattern::TRACK_HITS);
-       losthitsPixels_  =  itTrack->hitPattern().numberOfLostPixelHits(reco::HitPattern::TRACK_HITS);
-       nLayers_         =  itTrack->hitPattern().trackerLayersWithMeasurement();
-       p_       = itTrack->p();
-       pt_      = itTrack->pt();
-       chi2_    = itTrack->chi2();
-       ndof_    = itTrack->ndof();
-       dz_      = itTrack->dz();
-       dzerr_   = itTrack->dzError();
-       dzCorr_  = itTrack->dz(beamSpot);
-       dxy_     = itTrack->dxy();
-       dxyerr_  = itTrack->dxyError();
-       dxyCorr_ = itTrack->dxy(beamSpot);
-       pterr_   = itTrack->ptError();
-       etaerr_  = itTrack->etaError();
-       phierr_  = itTrack->phiError();
-       qoverp_  = itTrack->qoverp();
-       xPCA_    = itTrack->vertex().x();
-       yPCA_    = itTrack->vertex().y();
-       zPCA_    = itTrack->vertex().z();
-
-       try { // only one track collection (at best) is connected to the main vertex
-	 if(!vertexColl.empty() && !vertexColl.begin()->isFake()) {
-	   trkWeightpvtx_ = vertexColl.begin()->trackWeight(itTrack);
-	 } else
-	   trkWeightpvtx_ = 0.;
-       } catch ( cms::Exception& ) {
-	 trkWeightpvtx_ = 0.;
-       }
-       globaltrackid_++;
-       std::map<size_t,int>::const_iterator theV = trackVertices.find(itTrack.key());
-       vertexid_ = (theV!=trackVertices.end()) ? theV->second : 0;
-       // compute the fraction of low probability pixels... will be added to the event tree
-       for(trackingRecHit_iterator it = itTrack->recHitsBegin(); it!=itTrack->recHitsEnd(); ++it) {
-	 const TrackingRecHit* hit = &(**it);
-	 const SiPixelRecHit* pixhit = dynamic_cast<const SiPixelRecHit*>(hit);
-	 if(pixhit) {
-	   DetId detId = pixhit->geographicalId();
-	   if(detId.subdetId() == PixelSubdetector::PixelBarrel) {
-	     ++n_hits_barrel;
-	     double proba = pixhit->clusterProbability(0);
-	     if(proba<=0.0) ++n_hits_lowprob;
-	   }
-	 }
-       }
-       tracks_->Fill();
-     }
-     lowPixelProbabilityFraction_ = n_hits_barrel>0 ? (float)n_hits_lowprob/n_hits_barrel : -1.;
-   }
-   
-   // iterate over clusters
-   unsigned int localCounter = 0;
-   nclusters_ = 0;
-   if(functionality_offtrackClusters_||functionality_ontrackClusters_){
-     std::vector<double> clusterOntrackAngles = onTrackAngles(clusters,trajectoryCollection);
-     std::vector<double>::const_iterator angleIt = clusterOntrackAngles.begin();     
-     for (edmNew::DetSetVector<SiStripCluster>::const_iterator DSViter=clusters->begin(); DSViter!=clusters->end();DSViter++ ) {
-       edmNew::DetSet<SiStripCluster>::const_iterator begin=DSViter->begin();
-       edmNew::DetSet<SiStripCluster>::const_iterator end  =DSViter->end();
-       unsigned int detid = DSViter->id();
-       nclusters_ += DSViter->size();
-
-       for(edmNew::DetSet<SiStripCluster>::const_iterator iter=begin;iter!=end;++iter,++angleIt,++localCounter) {
-	 siStripClusterInfo_.setCluster(*iter, detid);
-         // general quantities
-	 trackid_ = stripClusterOntrackIndices[localCounter];
-	 //
-         onTrack_    = (trackid_ != (unsigned int)-1);
-         clWidth_    = siStripClusterInfo_.width();
-         clPosition_ = siStripClusterInfo_.baryStrip();
-         angle_      = *angleIt;
-         thickness_  = ((((DSViter->id()>>25)&0x7f)==0xd) ||
-			((((DSViter->id()>>25)&0x7f)==0xe) && (((DSViter->id()>>5)&0x7)>4))) ? 500 : 300;
-         stripLength_ = static_cast<const StripGeomDetUnit*>(tracker_->idToDet(detid))->specificTopology().stripLength();
-         int nstrips  = static_cast<const StripGeomDetUnit*>(tracker_->idToDet(detid))->specificTopology().nstrips();
-         maxCharge_   = siStripClusterInfo_.maxCharge();
-         // signal and noise with gain corrections
-         clNormalizedCharge_ = siStripClusterInfo_.charge() ;
-         clNormalizedNoise_  = siStripClusterInfo_.noiseRescaledByGain() ;
-         clSignalOverNoise_  = siStripClusterInfo_.signalOverNoise() ;
-         // signal and noise with gain corrections and angle corrections
-         clCorrectedCharge_ = clNormalizedCharge_ * fabs(cos(angle_)); // corrected for track angle
-         clCorrectedSignalOverNoise_ = clSignalOverNoise_ * fabs(cos(angle_)); // corrected for track angle
-         // signal and noise without gain corrections
-         clBareNoise_  = siStripClusterInfo_.noise();
-         clBareCharge_ = clSignalOverNoise_*clBareNoise_;
-         // global position
-         const StripGeomDetUnit* sgdu = static_cast<const StripGeomDetUnit*>(tracker_->idToDet(detid));
-         Surface::GlobalPoint gp = sgdu->surface().toGlobal(sgdu->specificTopology().localPosition(MeasurementPoint(clPosition_,0)));
-         globalX_ = gp.x();
-         globalY_ = gp.y();
-         globalZ_ = gp.z();
-         // cabling
-         detid_ = detid;
-         lldChannel_ = 1+(int(floor(iter->barycenter()))/256);
-         if(lldChannel_==2 && nstrips==512) lldChannel_=3;
-         if((functionality_offtrackClusters_&&!onTrack_)||(functionality_ontrackClusters_&&onTrack_)) 
-	   clusters_->Fill();
-       }
-     }
-   }
-   else{
-     for (edmNew::DetSetVector<SiStripCluster>::const_iterator DSViter=clusters->begin(); DSViter!=clusters->end();DSViter++ ) {
-       nclusters_ += DSViter->size();
-     }
-   }
-
-   // fill event tree
-   if(functionality_events_) 
-     event_->Fill();
-   
+  for (edmNew::DetSetVector<SiStripCluster>::const_iterator DSViter=clusters->begin(); DSViter!=clusters->end();DSViter++ ) {
+    edmNew::DetSet<SiStripCluster>::const_iterator begin=DSViter->begin();
+    edmNew::DetSet<SiStripCluster>::const_iterator end  =DSViter->end();
+    unsigned int detid = DSViter->id();
+    nclusters_ += DSViter->size();
+     
+    for(edmNew::DetSet<SiStripCluster>::const_iterator iter=begin;iter!=end;++iter,++angleIt,++localCounter) {
+      siStripClusterInfo_.setCluster(*iter, detid);
+      // general quantities
+      trackid_ = stripClusterOntrackIndices[localCounter];
+      onTrack_    = (trackid_ != (unsigned int)-1);
+      clWidth_    = siStripClusterInfo_.width();
+      clPosition_ = siStripClusterInfo_.baryStrip();
+      angle_      = *angleIt;
+      thickness_  = ((((DSViter->id()>>25)&0x7f)==0xd) ||
+		     ((((DSViter->id()>>25)&0x7f)==0xe) && (((DSViter->id()>>5)&0x7)>4))) ? 500 : 300;
+      stripLength_ = static_cast<const StripGeomDetUnit*>(tracker_->idToDet(detid))->specificTopology().stripLength();
+      int nstrips  = static_cast<const StripGeomDetUnit*>(tracker_->idToDet(detid))->specificTopology().nstrips();
+      maxCharge_   = siStripClusterInfo_.maxCharge();
+      // signal and noise with gain corrections
+      clNormalizedCharge_ = siStripClusterInfo_.charge() ;
+      clNormalizedNoise_  = siStripClusterInfo_.noiseRescaledByGain() ;
+      clSignalOverNoise_  = siStripClusterInfo_.signalOverNoise() ;
+      // signal and noise with gain corrections and angle corrections
+      clCorrectedCharge_ = clNormalizedCharge_ * fabs(cos(angle_)); // corrected for track angle
+      clCorrectedSignalOverNoise_ = clSignalOverNoise_ * fabs(cos(angle_)); // corrected for track angle
+      // signal and noise without gain corrections
+      clBareNoise_  = siStripClusterInfo_.noise();
+      clBareCharge_ = clSignalOverNoise_*clBareNoise_;
+       // global position
+      const StripGeomDetUnit* sgdu = static_cast<const StripGeomDetUnit*>(tracker_->idToDet(detid));
+      Surface::GlobalPoint gp = sgdu->surface().toGlobal(sgdu->specificTopology().localPosition(MeasurementPoint(clPosition_,0)));
+      globalX_ = gp.x();
+      globalY_ = gp.y();
+      globalZ_ = gp.z();
+       // cabling
+      detid_ = detid;
+      lldChannel_ = 1+(int(floor(iter->barycenter()))/256);
+      if(lldChannel_==2 && nstrips==512) lldChannel_=3;
+      if((functionality_offtrackClusters_&&!onTrack_)||(functionality_ontrackClusters_&&onTrack_)) 
+	clusters_->Fill();
+    }
+  }
+  
+  // fill event tree
+  if(functionality_events_)
+    event_->Fill();
 }
 
 // ------------ method called once each job just before starting event loop  ------------
@@ -655,7 +638,8 @@ void TrackerDpgAnalysis::beginJob(){
   edm::Service<TFileService> fileService;
   TFileDirectory* dir = new TFileDirectory(fileService->mkdir("trackerDPG"));
 
-  globaltrackid_ = pset_.getParameter<unsigned int>("InitalCounter");
+  globaltrackid_  = pset_.getParameter<unsigned int>("InitalCounter");
+  globalvertexid_ = pset_.getParameter<unsigned int>("InitalCounter");
   
   // create a tree for the events
   event_ = dir->make<TTree>("events","event information");
@@ -737,7 +721,7 @@ void TrackerDpgAnalysis::beginJob(){
   tracks_->Branch("eventid",&eventid_,"eventid/i");
   tracks_->Branch("runid",&runid_,"runid/i");
   tracks_->Branch("lumi",&lumisec_,"lumi/i");
-  tracks_->Branch("trackid",&trackid_,"trackid/i");
+  tracks_->Branch("trackid",&globaltrackid_,"trackid/i");
   tracks_->Branch("chi2",&chi2_,"chi2/F");
   tracks_->Branch("eta",&eta_,"eta/F");
   tracks_->Branch("etaerr",&etaerr_,"etaerr/F");
@@ -796,21 +780,10 @@ void TrackerDpgAnalysis::beginJob(){
 
 
 // ------------ method called once each job just after ending the event loop  ------------
-void TrackerDpgAnalysis::endJob() {  
-  /*
-  if(event_ && event_->GetEntries()) 
-    event_->BuildIndex("runid","eventid");
-  if(vertices_ && vertices_->GetEntries()) 
-    vertices_->BuildIndex("vertexid","eventid");
-  if(readoutmap_ && readoutmap_->GetEntries()) 
-    readoutmap_->BuildIndex("detid","lldChannel");
-  if(tracks_ && tracks_->GetEntries()) 
-    tracks_->BuildIndex("trackid","eventid");
-  */
-}  
+void TrackerDpgAnalysis::endJob() {}  
 
   // build reverse map track -> vertex
-std::map<size_t,int> TrackerDpgAnalysis::inVertex(const reco::TrackCollection& tracks, const reco::VertexCollection& vertices, unsigned int firstVertex){
+std::map<size_t,int> TrackerDpgAnalysis::inVertex(const reco::VertexCollection& vertices, unsigned int firstVertex){
   std::map<size_t,int> output;
   unsigned int vertexid = firstVertex;
   for(reco::VertexCollection::const_iterator v = vertices.begin(); v!=vertices.end(); ++v,++vertexid) {

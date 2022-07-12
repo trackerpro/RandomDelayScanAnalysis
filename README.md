@@ -15,13 +15,12 @@ git clone git@github.com:trackerpro/RandomDelayScanAnalysis.git TrackerDAQAnalys
 scramv1 b -j 4;					 
 ```
 
-## Run on t0streamer files
+## Run on RAW DAQ files
 
-* Example on how to run on a couple of input files. Location of streamer file is ```/store/t0streamer/Data/```
+* Example on how to run on a couple of input files. Location of streamer file is ```/store/t0streamer/Data/``` for the various streams. The job has to run the re-packing, un-packing, local and global tracking steps.
     
 ```sh
-cmsRun trackerdpganalysis_cfg.py isRawDAQFile=True globalTag=run3_data_express nThreads=2 inputDelayFile=TrackerDealyMap_Run346446_pll.csv inputFiles=/store/t0streamer/Data/Express/000/346/446/run346446_ls0001_streamExpress_StorageManager.dat delayStep=0 triggerList="HLT_HcalNZS*","HLT_L1ETT_ZeroBias*","HLT_PixelClusters_WP1_ZeroBias*" maxEvents=100
-cmsRun trackerdpganalysis_cfg.py isRawDAQFile=True globalTag=run3_data nThreads=2 inputDelayFile=TrackerDealyMap_Run346446_pll.csv inputFiles=/store/t0streamer/Data/PhysicsMinimumBias0/000/346/446/run346446_ls0001_streamPhysicsMinimumBias0_StorageManager.dat triggerList="HLT_PixelClusters_WP2_ZeroBias*","HLT_L1ETT_ZeroBias*" maxEvents=100
+cmsRun trackerdpganalysis_cfg.py isRawDAQFile=True globalTag=run3_data_express nThreads=4 inputDelayFile=TrackerDealyMap_Run346446_pll.csv inputFiles=/store/t0streamer/Data/Express/000/346/446/run346446_ls0001_streamExpress_StorageManager.dat delayStep=0 triggerList="HLT_HcalNZS*","HLT_L1ETT_ZeroBias*","HLT_PixelClusters_WP1_ZeroBias*" maxEvents=100
 ```
 
 Trigger that can be requried depending on the output stream can be accessed via OMS for each run number. Above examples are taken for run 346446 taken in fall 2021 at Run3 commissioning startup.
@@ -31,7 +30,7 @@ Trigger that can be requried depending on the output stream can be accessed via 
 ```sh
 python3 submitBatchJobs.py --inputDIR /eos/cms/store/t0streamer/Data/Express/000/346/446/ --outputDIR /eos/cms/store/group/dpg_tracker_strip/tracker/Online/RandomDelayScan/Run346446/MinimumBias0/ --jsonFile json_346446.json --eventsPerJob 1500 --delayStep 0 --nThreads 2 --triggerList "HLT_HcalNZS*,HLT_L1ETT_ZeroBias*,HLT_PixelClusters_WP1_ZeroBias*,HLT_PixelClusters_WP2_ZeroBias*" --globalTag run3_data_express --delayFileDirectory ../crab/2021/ --jobDIR jobs_minimumbias0 --isRawDAQFile --submit
 ```	
-## Run on RAW files
+## Run on RAW EDM files
     
 * Example on how to run on some input files. For Commissioning2021, the following queries to DBS can be performed:
     
@@ -41,9 +40,9 @@ asgoclient --query "file dataset=/MinimumBias0/Commissioning2021-v1/RAW run=3464
 asgoclient --query "site dataset=/MinimumBias0/Commissioning2021-v1/RAW"
 ```
 	
-  However typically RAW files are just kept on TAPE or at T0_CERN where jobs cannot be run. However, one can also access directly to the T0 space like in ```/eos/cms/tier0/store/data/Commissioning2021/```
+However typically RAW files are just kept on TAPE or at T0_CERN where jobs cannot be run. However, one can also access directly to the T0 space like in ```/eos/cms/tier0/store/data/Commissioning2021/```
 
-* if files are on-disk, you can use the following commands:
+* if files are on-disk, you can use the following commands that performs un-packing, local and global tracking steps:
 
 ```sh
 cmsRun trackerdpganalysis_cfg.py isRawEDMFile=True globalTag=run3_data nThreads=2 inputDelayFile=TrackerDealyMap_Run346446_pll.csv inputFiles=<file location> triggerList="HLT_PixelClusters_WP2_ZeroBias*","HLT_L1ETT_ZeroBias*" maxEvents=100
@@ -55,7 +54,7 @@ cmsRun trackerdpganalysis_cfg.py isRawEDMFile=True globalTag=run3_data nThreads=
 python3 submitBatchJobs.py --inputDIR /eos/cms//tier0/store/data/Commissioning2021/MinimumBias0/RAW/v1/000/346/446/ --outputDIR /eos/cms/store/group/dpg_tracker_strip/tracker/Online/RandomDelayScan/Run346446/MinimumBias0/ --jsonFile json_346446.json --eventsPerJob 1500 --delayStep 0 --triggerList "HLT_HcalNZS*,HLT_L1ETT_ZeroBias*,HLT_PixelClusters_WP1_ZeroBias*,HLT_PixelClusters_WP2_ZeroBias*" --globalTag run3_data --delayFileDirectory ../crab/2021/ --jobDIR jobs_minimumbias0 --isRawEDMFile --submit
 ```
 
-## Run on FEVT files
+## Run on FEVT files from ExpressStream
     
 * Example on how to run on some input files. For Commissioning2021, the following queries to DBS can be performed:
 
@@ -94,14 +93,6 @@ skimTrees(<input file>, <outputfile>, <isBon = rule the selection string written
 python scripts/submitTreeSkim.py  --inputDIR <directory with all the files for a given run, produced by crab is ok> --outputDIR <output location on Cern EOS> --outputBaseName <base name for the output root file> --isBOn (in case you want to apply bOn selections) --jobDIR <JOBDIR> --queque <QUEQUE> --submit
 ```
 
-## Copy from EOS to a local machine:
-
-* Once skimmed trees are ready, to copy them to a local machine you could use:
-
-```sh
-python3 scripts/copyFilesEOS.py --inputDIR <directory where skimmed trees are located> --outputDIR <local directory to be copied>
-```
-    
 ## Merge trees belonging to a given run:
 
 * Script to automatically merge files into a single ROOT file. The reference file should be one of the files that is going to be merged, from which the readout map is taken.
@@ -157,7 +148,7 @@ delayValidationPerModule(<input directory where all the merged files for differe
 
 ### Compare different runs:
 
-* The code produces a lighter output file with a tree called again delayCorrection. It contains three branches: Detid, fedCh and te correction in units of 25/24ns, to be propagated to the DB.
+* The code produces a lighter output file with a tree called again delayCorrection. It contains three branches: Detid, fedCh and the correction in units of 25/24ns, to be propagated to the DB.
 
 ```sh
 cd macros/makeRunComparison

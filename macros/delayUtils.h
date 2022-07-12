@@ -158,7 +158,7 @@ TFitResultPtr fitHistogram(TH1F* histo, bool gaus = false, string options = "", 
   if(gaus) { // gaussina fit                                                                                                                                                   
     pulse = new TF1(Form("Gaus_%s",histo->GetName()),"gaus(0)",-10.5,10.5);
     pulse->SetParameters(50,0,12);
-  } else {// different fit for the histoile                                                                                                                                     
+  } else {// different fit for the histo
     pulse = TkPulseShape::GetDeconvFitter();
     pulse->SetName(Form("SignalFit_%s",histo->GetName()));
     pulse->SetParameters(0,0,3,50,15);

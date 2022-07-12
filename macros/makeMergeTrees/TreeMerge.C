@@ -1,5 +1,9 @@
-// Merge all the trees beloging to a delay setting: destination = merged file, reference is a single to take the delay map, sources are files to be merged
-void TreeMerge(string destinationFile, string referenceFile, string inputDirectoryPath, string grepNameDir = "", bool cancelInputFiles = false, int numberOfThreads = 2) {
+// Merge all the trees beloging to a delay setting: destination = merged file, rsources are files to be merged
+void TreeMerge(const string & destinationFile, 
+	       const string & inputDirectoryPath, 
+	       const string & grepNameDir = "", 
+	       const bool & cancelInputFiles = false, 
+	       const int & numberOfThreads = 2) {
 
   system(("rm -rf "+destinationFile).c_str());
 
@@ -29,8 +33,9 @@ void TreeMerge(string destinationFile, string referenceFile, string inputDirecto
   cout<<inputFiles<<endl;
   gSystem->Exec(Form("hadd -j %d -f %s %s",numberOfThreads,destinationFile.c_str(),inputFiles.c_str()));
 
-  
   std::cout << "Reindexing the element of the merged tree..."  << std::endl;
+  // just take the first tree of those merged as reference
+  string referenceFile = inputFiles.at(0);
   TFile* f = TFile::Open(destinationFile.c_str(),"update");
   TFile* f2 = TFile::Open(referenceFile.c_str());
   TTree* tree = (TTree*) f2->FindObjectAny("psumap");

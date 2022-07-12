@@ -22,9 +22,12 @@ parser.add_option('-b', action='store_true', dest='noX', default=False, help='no
 parser.add_option('--inputDIR',       action="store", type="string", dest="inputDIR",     default="",   help="input directory where files are contained")
 parser.add_option('--outputDIR',      action="store", type="string", dest="outputDIR",    default="",   help="output DIR")
 parser.add_option('--outputBaseName', action="store", type="string", dest="outputBaseName", default="", help="output base name")
-parser.add_option('--isBOn',          action="store_true", dest="isBOn", help="rule the track/event/vertex/clusters selection in the analysis")
-parser.add_option('--filesPerJob',    action="store", type=int,          dest="filesPerJob",  default=5,   help="number of files for each job")
-##  for submitting jobs in lxbatch                                                                                                                                              
+parser.add_option('--eventSelection', action="store", type="string", dest="eventSelection", default="", help="event based selection")
+parser.add_option('--vertexSelection',action="store", type="string", dest="vertexSelection", default="", help="vertex based selection")
+parser.add_option('--trackSelection', action="store", type="string", dest="trackSelection", default="", help="track based selection")
+parser.add_option('--clusterSelection', action="store", type="string", dest="clusterSelection", default="", help="cluster based selection")
+parser.add_option('--nthreads',       action="store", type=int,      dest="nthreads",    default=4,   help="number of threads for each job")
+parser.add_option('--filesPerJob',    action="store", type=int,      dest="filesPerJob", default=5,   help="number of files for each job")
 parser.add_option('--jobDIR',       action="store", type="string", dest="jobDIR",  default="",        help="directory for job")
 parser.add_option('--queque',       action="store", type="string", dest="queque",  default="longlunch",        help="queque for LSF")
 parser.add_option('--submit',       action="store_true",           dest="submit",                     help="submit")
@@ -41,24 +44,17 @@ if __name__ == '__main__':
    currentDIR = os.getcwd();
    ## generate binary file                                                                                                                                                      
    ROOT.gROOT.ProcessLine(".L ../macros/makeSkimTrees/skimTrees.C");
-   os.system("mkdir -p "+options.jobDIR)
-   os.system("rm -r "+options.jobDIR);
-   os.system("mkdir -p "+options.jobDIR)
 
-   isBOn = 0;
-   if options.isBOn:
-       isBOn = 1;
+   out = subprocess.run(["rm -r "+options.jobDIR,"mkdir -p "+options.jobDIR],shell=True);
    
    ## make the file list ... typically all the files of a given run
    fileList = [];
-   os.system("find "+options.inputDIR+" -name \"*.root\" > file_temp.txt");
-   fs = open("file_temp.txt","r");
-   for line in fs:
+   for line in glob.globa(options.inputDIR+"/*root",recursive=True)
       if line == "": continue;
       if ".root" in line:
          line = line.replace('\n','');
          fileList.append(line);
-   os.system("rm file_temp.txt");
+   out = subprocess.run(["rm file_temp.txt",shell=True);
    print ("----> Found",len(fileList),"inside the input directory");
 
    #### given n-files per job calculate and create jobs
@@ -94,7 +90,18 @@ if __name__ == '__main__':
       jobmacro = open('%s/job_%d.C'%(options.jobDIR,ijob),'w')
       jobmacro.write("{\n");
       jobmacro.write("gROOT->ProcessLine(\".L "+currentDIR+"/../macros/makeSkimTrees/skimTrees.C\");\n");      
-      jobmacro.write("gROOT->ProcessLine(\""+"skimTrees(\\\"inputfile_job_%d.list\\\",\\\"%s\\\",%i)\");\n"%(ijob,options.outputBaseName+"_"+str(ijob)+".root",isBOn));
+      if options.eventSelection and options.vertexSelection and options.trackSelection and options.options.clusterSelection:
+         jobmacro.write("gROOT->ProcessLine(\""+"skimTrees(\\\"inputfile_job_%d.list\\\",\\\"%s\\\",%i,\\\"%s\\\",\\\"%s\\\",\\\"%s\\\",\\\"%s\\\")\");\n"%(ijob,options.outputBaseName+"_"+str(ijob)+".root",options.nthreads,options.eventSelection,options.vertexSelection,options.trackSelection,options.clusterSelection));
+      elif options.eventSelection and options.vertexSelection and options.trackSelection and not options.clusterSelection:
+         jobmacro.write("gROOT->ProcessLine(\""+"skimTrees(\\\"inputfile_job_%d.list\\\",\\\"%s\\\",%i,\\\"%s\\\",\\\"%s\\\",\\\"%s\\\")\");\n"%(ijob,options.outputBaseName+"_"+str(ijob)+".root",options.nthreads,options.eventSelection,options.vertexSelection,options.trackSelection));
+      elif options.eventSelection and options.vertexSelection and not options.trackSelection and not options.clusterSelection:
+         jobmacro.write("gROOT->ProcessLine(\""+"skimTrees(\\\"inputfile_job_%d.list\\\",\\\"%s\\\",%i,\\\"%s\\\",\\\"%s\\\")\");\n"%(ijob,options.outputBaseName+"_"+str(ijob)+".root",options.nthreads,options.eventSelection,options.vertexSelection));
+      elif options.eventSelection and options.vertexSelection:
+         jobmacro.write("gROOT->ProcessLine(\""+"skimTrees(\\\"inputfile_job_%d.list\\\",\\\"%s\\\",%i,\\\"%s\\\",\\\"%s\\\")\");\n"%(ijob,options.outputBaseName+"_"+str(ijob)+".root",options.nthreads,options.eventSelection,options.vertexSelection));
+      elif options.eventSelection:         
+         jobmacro.write("gROOT->ProcessLine(\""+"skimTrees(\\\"inputfile_job_%d.list\\\",\\\"%s\\\",%i,\\\"%s\\\")\");\n"%(ijob,options.outputBaseName+"_"+str(ijob)+".root",options.nthreads,options.eventSelection));
+      else:
+         jobmacro.write("gROOT->ProcessLine(\""+"skimTrees(\\\"inputfile_job_%d.list\\\",\\\"%s\\\",%i)\");\n"%(ijob,options.outputBaseName+"_"+str(ijob)+".root",options.nthreads));
       jobmacro.write("}\n");
       jobmacro.close();
 
@@ -110,7 +117,7 @@ if __name__ == '__main__':
 
    jobscript.write("\n");
    jobscript.close();
-   os.system('chmod a+x %s/condor_job.sh'%(options.jobDIR));
+   out = subprocess.run('chmod a+x %s/condor_job.sh'%(options.jobDIR),shell=True);
    
    condor_job = open("%s/condor_job.sub"%(options.jobDIR),"w");
    condor_job.write("executable = %s/%s/condor_job.sh\n"%(currentDIR,options.jobDIR));
@@ -124,7 +131,9 @@ if __name__ == '__main__':
    condor_job.write("universe = vanilla\n");
    condor_job.write("+JobFlavour = \""+options.queque+"\"\n");
    condor_job.write("queue "+str(njobs)+"\n");
+   condor_job.write("request_cpus   = "+str(options.nthreads)+"\n");
+   condor_job.write("request_memory = "+str(2000*options.nthreads)+"\n");
    condor_job.close();
       
    if options.submit:
-      os.system("condor_submit %s/condor_job.sub"%(options.jobDIR));
+      out = subprocess.run("condor_submit %s/condor_job.sub"%(options.jobDIR),shell=True);

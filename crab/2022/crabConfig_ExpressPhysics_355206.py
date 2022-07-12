@@ -22,9 +22,9 @@ config.JobType.numCores    = 4
 config.Data.inputDataset  = '/ExpressPhysics/Run2022B-Express-v1/FEVT' 
 config.Data.inputDBS      = 'global'
 config.Data.splitting     = 'LumiBased'
-config.Data.unitsPerJob   = 15
+config.Data.unitsPerJob   = 3
 config.Data.outLFNDirBase = '/store/group/dpg_tracker_strip/tracker/Online/RandomDelayScan/Run355206/StreamExpressPhysics'
 config.Data.publication   = False
-config.Data.lumiMask      = '/afs/cern.ch/user/r/rgerosa/work/TrackerDAQ/DELAY_SCAN/CMSSW_12_0_3_patch1/src/TrackerDAQAnalysis/RandomDelayScanAnalysis/crab/2021/json_346446.json'
+config.Data.lumiMask      = './json_355206.json'
 
 config.Site.storageSite = 'T2_CH_CERN'
