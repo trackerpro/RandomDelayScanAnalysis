@@ -19,29 +19,29 @@ static bool isGaussian = true;
 // reduce the number of events by
 static int  reductionFactor = 1;
 
-static std::map<uint32_t,std::map<float,TH1F*> > TIBlayers; // map layer:delay:distribution
-static std::map<uint32_t,std::map<float,TH1F*> > TOBlayers;
-static std::map<uint32_t,std::map<float,TH1F*> > TIDlayers;
-static std::map<uint32_t,std::map<float,TH1F*> > TECPTlayers;
-static std::map<uint32_t,std::map<float,TH1F*> > TECPtlayers;
-static std::map<uint32_t,std::map<float,TH1F*> > TECMTlayers;
-static std::map<uint32_t,std::map<float,TH1F*> > TECMtlayers;
+static std::map<unsigned int,std::map<float,TH1F*> > TIBlayers; // map layer:delay:distribution
+static std::map<unsigned int,std::map<float,TH1F*> > TOBlayers;
+static std::map<unsigned int,std::map<float,TH1F*> > TIDlayers;
+static std::map<unsigned int,std::map<float,TH1F*> > TECPTlayers;
+static std::map<unsigned int,std::map<float,TH1F*> > TECPtlayers;
+static std::map<unsigned int,std::map<float,TH1F*> > TECMTlayers;
+static std::map<unsigned int,std::map<float,TH1F*> > TECMtlayers;
 
-static std::map<uint32_t,std::map<float,TF1*> > fitTIBlayers; // map layer:delay:distribution
-static std::map<uint32_t,std::map<float,TF1*> > fitTOBlayers;
-static std::map<uint32_t,std::map<float,TF1*> > fitTIDlayers;
-static std::map<uint32_t,std::map<float,TF1*> > fitTECPTlayers;
-static std::map<uint32_t,std::map<float,TF1*> > fitTECPtlayers;
-static std::map<uint32_t,std::map<float,TF1*> > fitTECMTlayers;
-static std::map<uint32_t,std::map<float,TF1*> > fitTECMtlayers;
+static std::map<unsigned int,std::map<float,TF1*> > fitTIBlayers; // map layer:delay:distribution
+static std::map<unsigned int,std::map<float,TF1*> > fitTOBlayers;
+static std::map<unsigned int,std::map<float,TF1*> > fitTIDlayers;
+static std::map<unsigned int,std::map<float,TF1*> > fitTECPTlayers;
+static std::map<unsigned int,std::map<float,TF1*> > fitTECPtlayers;
+static std::map<unsigned int,std::map<float,TF1*> > fitTECMTlayers;
+static std::map<unsigned int,std::map<float,TF1*> > fitTECMtlayers;
 
-static std::map<uint32_t,std::map<float,RooAbsPdf*> > pdfTIBlayers; // map layer:delay:distribution
-static std::map<uint32_t,std::map<float,RooAbsPdf*> > pdfTOBlayers;
-static std::map<uint32_t,std::map<float,RooAbsPdf*> > pdfTIDlayers;
-static std::map<uint32_t,std::map<float,RooAbsPdf*> > pdfTECPTlayers;
-static std::map<uint32_t,std::map<float,RooAbsPdf*> > pdfTECPtlayers;
-static std::map<uint32_t,std::map<float,RooAbsPdf*> > pdfTECMTlayers;
-static std::map<uint32_t,std::map<float,RooAbsPdf*> > pdfTECMtlayers;
+static std::map<unsigned int,std::map<float,RooAbsPdf*> > pdfTIBlayers; // map layer:delay:distribution
+static std::map<unsigned int,std::map<float,RooAbsPdf*> > pdfTOBlayers;
+static std::map<unsigned int,std::map<float,RooAbsPdf*> > pdfTIDlayers;
+static std::map<unsigned int,std::map<float,RooAbsPdf*> > pdfTECPTlayers;
+static std::map<unsigned int,std::map<float,RooAbsPdf*> > pdfTECPtlayers;
+static std::map<unsigned int,std::map<float,RooAbsPdf*> > pdfTECMTlayers;
+static std::map<unsigned int,std::map<float,RooAbsPdf*> > pdfTECMtlayers;
 
 TF1* makeLandauGausFit(TH1F* histoToFit, int & status, string subdetector, const float & delay, const string & observable, pair<float,RooAbsPdf*> & pair){
 
@@ -86,7 +86,6 @@ TF1* makeLandauGausFit(TH1F* histoToFit, int & status, string subdetector, const
 
 /// function that runs on the evnet and produce profiles for layers
 void LayerPlots(TTree* tree, 
-		TTree* map,
 		const string & observable,
 		const string & outputDIR) {
 
@@ -95,8 +94,8 @@ void LayerPlots(TTree* tree,
   std::cout<<"######################################################"<<std::endl;
   
   // set branches for the cluster, readoutmap and no corrections trees
-  uint32_t detid;
-  float    clCorrectedSignalOverNoise, clSignalOverNoise, clglobalX, clglobalY, clglobalZ, thickness, obs;
+  unsigned int detid;
+  float    clCorrectedSignalOverNoise, clSignalOverNoise, clglobalX, clglobalY, clglobalZ, thickness, obs, delay;
   tree->SetBranchStatus("*",kFALSE);
   tree->SetBranchStatus("detid",kTRUE);
   tree->SetBranchStatus("clCorrectedSignalOverNoise",kTRUE);
@@ -105,6 +104,7 @@ void LayerPlots(TTree* tree,
   tree->SetBranchStatus("clglobalY",kTRUE);
   tree->SetBranchStatus("clglobalZ",kTRUE);
   tree->SetBranchStatus("thickness",kTRUE);
+  tree->SetBranchStatus("delay",kTRUE);
   tree->SetBranchStatus(observable.c_str(),kTRUE);
   tree->SetBranchAddress("detid",&detid);
   tree->SetBranchAddress("clCorrectedSignalOverNoise",&clCorrectedSignalOverNoise);
@@ -113,13 +113,8 @@ void LayerPlots(TTree* tree,
   tree->SetBranchAddress("clglobalY",&clglobalY);
   tree->SetBranchAddress("clglobalZ",&clglobalZ);
   tree->SetBranchAddress("thickness",&thickness);
+  tree->SetBranchAddress("delay",&delay);
   tree->SetBranchAddress(observable.c_str(),&obs);
-
-  float delay;
-  map->SetBranchStatus("*",kFALSE);
-  map->SetBranchStatus("detid",kTRUE);
-  map->SetBranchStatus("delay",kTRUE);
-  map->SetBranchAddress("delay",&delay);
 
   // create vectors for the different Profiles
   float yMin   = 0, yMax = 0;
@@ -134,17 +129,15 @@ void LayerPlots(TTree* tree,
   for( ; iEvent < tree->GetEntries()/reductionFactor; iEvent++){    
     // take the event
     tree->GetEntry(iEvent);
-    // take the map delay from the detid
-    map->GetEntryWithIndex(detid);
 
     cout.flush();
     if(iEvent % 100000 == 0) cout<<"\r"<<"iEvent "<<100*double(iEvent)/(tree->GetEntries()/reductionFactor)<<" % ";
     
-    uint32_t subdetid    = int((detid-0x10000000)/0x2000000);
-    uint32_t barrellayer = int((detid%33554432)/0x4000);
-    uint32_t TIDlayer    = int((detid%33554432)/0x800)%4;
-    uint32_t TECPlayer   = int((detid%33554432)/0x4000)-32;
-    uint32_t TECMlayer   = int((detid%33554432)/0x4000)-16;
+    unsigned int subdetid    = int((detid-0x10000000)/0x2000000);
+    unsigned int barrellayer = int((detid%33554432)/0x4000);
+    unsigned int TIDlayer    = int((detid%33554432)/0x800)%4;
+    unsigned int TECPlayer   = int((detid%33554432)/0x4000)-32;
+    unsigned int TECMlayer   = int((detid%33554432)/0x4000)-16;
     float    R           = sqrt(clglobalX*clglobalX+clglobalY*clglobalY+clglobalZ*clglobalZ);
 
     float value = 0;
@@ -495,11 +488,10 @@ void makeChargeDistributionPerLayer(string file0,  // inputfile
   std::cout<<"Open Input Files"<<std::endl;
   TFile* _file0  = TFile::Open(file0.c_str());
   TTree* clusters    = (TTree*)_file0->FindObjectAny("clusters");
-  TTree* readoutMap  = (TTree*)_file0->FindObjectAny("readoutMap");
   clusters->SetEventList(0);  
 
   // run per layer analysis
-  LayerPlots(clusters,readoutMap,observable,outputDIR);
+  LayerPlots(clusters,observable,outputDIR);
   TCanvas* canvas = new TCanvas("canvas","",600,650);
   canvas->cd();
   plotDistributions(canvas,outputDIR);

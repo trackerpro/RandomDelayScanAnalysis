@@ -7,11 +7,11 @@
 
 void skimTrees(const string & inputFileName, 
 	       const string & outputFileName, 
-	       const int    & nthreads = 4,
-	       const string & eventSelection = "nVertices >= 1",   
-	       const string & vertexSelection = "isValid && !isFake && nTracks>3",   
-	       const string & trackSelection = "pt > 1 && abs(eta) < 2.75 && pterr/pt < 0.4 && chi2/ndof < 3 && losthitsPixels <= 1 && lostHits <= 2 && abs(dxy) < 50 && abs(dz) < 50",
-	       const string & clusterSelection = "onTrack && angle > 0 && maxCharge < 254",
+	       const int    & nthreads         = 1,
+	       const string & eventSelection   = "delayrange != 0",   
+	       const string & vertexSelection  = "isValid && !isFake && nTracks>3",   
+	       const string & trackSelection   = "pt > 1 && abs(eta) < 2.75 && pterr/pt < 0.4 && chi2/ndof < 3 && losthitsPixels <= 1 && lostHits <= 2 && abs(dxy) < 50 && abs(dz) < 50",
+	       const string & clusterSelection = "onTrack && angle > 0 && maxCharge < 254"
 	       ) {
 
   ROOT::EnableImplicitMT(nthreads);
@@ -123,7 +123,7 @@ void skimTrees(const string & inputFileName,
     cout<<"### Apply selection on tree and copy for "<<itree<<" out of "<<clustersTree.size()<<endl;
     clustersTree.at(itree)->AddFriend(eventTree.at(itree));
     clustersTree.at(itree)->AddFriend(trackTree.at(itree));
-    //clustersTree.at(itree)->AddFriend(vertexTree.at(itree));
+    clustersTree.at(itree)->AddFriend(vertexTree.at(itree));
     outputTree.push_back(clustersTree.at(itree)->CopyTree(selection.c_str()));
     cout<<"### Entries in the output tree "<<outputTree.back()->GetEntries()<<endl;
     tree_list->Add(outputTree.back());    
@@ -132,6 +132,7 @@ void skimTrees(const string & inputFileName,
   cout<<"Merge trees and write output "<<endl;
   TTree* final_output_tree = TTree::MergeTrees(tree_list); 
   final_output_tree->Write("clusters",TObject::kOverwrite);
+  final_output_tree->Write("events",TObject::kOverwrite);
 
   /// Just use the first file here
   cout<<"### Copy the PSU map in the output map "<<endl;

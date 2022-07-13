@@ -26,7 +26,6 @@
 #include "RooGaussian.h"
 #include "RooFFTConvPdf.h"
 
-
 using namespace RooFit;
  
 // parametrize profile with a gaussian shape
@@ -49,19 +48,17 @@ static float maxSigma = 20;
 static bool doFitOfClusterShape = true;
 // decide whether use histograms values or fitted ones
 static bool storeFitOfClusterShape = true;
-
+// list of files
 static std::vector<TFile* > files;
  
-
 /// function that runs on the evnet and produce profiles for layers
 void ChannnelPlots(const std::vector<TTree* > & tree, 
-		   const std::vector<TTree* > & map,
 		   TTree* corrections,		   
-		   std::map<uint32_t,std::map<float,TH1F* > > channelMap,
-		   std::map<uint32_t,TH1F* > & channelMapMean,
-		   std::map<uint32_t,TH1F* > & channelMapMPV,
-		   std::map<uint32_t,int > & fitStatusMean,
-		   std::map<uint32_t,int > & fitStatusMPV,
+		   std::map<unsigned int,std::map<float,TH1F* > > channelMap,
+		   std::map<unsigned int,TH1F* > & channelMapMean,
+		   std::map<unsigned int,TH1F* > & channelMapMPV,
+		   std::map<unsigned int,int > & fitStatusMean,
+		   std::map<unsigned int,int > & fitStatusMPV,
 		   const string & observable,
 		   const string & outputDIR) {
 
@@ -82,44 +79,37 @@ void ChannnelPlots(const std::vector<TTree* > & tree,
   setLimitsAndBinning("delay",delayBins);
   setLimitsAndBinning(observable,yMin,yMax,nBinsY);
 
-  int   correction;
+  int correction;
   corrections->SetBranchStatus("*",kFALSE);
   corrections->SetBranchStatus("detid",kTRUE);
   corrections->SetBranchStatus("correction",kTRUE);
   corrections->SetBranchAddress("correction",&correction);
 
-  if(tree.size() != map.size())
-    std::cout<<"### Different size between delay and readoutMaps "<<std::endl;
-
   for(int iTree = 0; iTree < tree.size(); iTree++){
     std::cout<<"### Start analysis of Tree "<<iTree<<" of "<<tree.size()<<std::endl;
     // set branches for the cluster, readoutmap and no corrections trees
-    uint32_t detid;
-    float    clCorrectedSignalOverNoise, clSignalOverNoise, obs;
+    unsigned int detid;
+    float    clCorrectedSignalOverNoise, clSignalOverNoise, obs, delay;
     tree.at(iTree)->SetBranchStatus("*",kFALSE);
     tree.at(iTree)->SetBranchStatus("detid",kTRUE);
     tree.at(iTree)->SetBranchStatus("clCorrectedSignalOverNoise",kTRUE);
     tree.at(iTree)->SetBranchStatus("clSignalOverNoise",kTRUE);
+    tree.at(iTree)->SetBranchStatus("delay",kTRUE);
     tree.at(iTree)->SetBranchStatus(observable.c_str(),kTRUE);
     tree.at(iTree)->SetBranchAddress("detid",&detid);
     tree.at(iTree)->SetBranchAddress("clCorrectedSignalOverNoise",&clCorrectedSignalOverNoise);
     tree.at(iTree)->SetBranchAddress("clSignalOverNoise",&clSignalOverNoise);
+    tree.at(iTree)->SetBranchAddress("delay",&delay);
     tree.at(iTree)->SetBranchAddress(observable.c_str(),&obs);
 
-    float delay;
-    map.at(iTree)->SetBranchStatus("*",kFALSE);
-    map.at(iTree)->SetBranchStatus("detid",kTRUE);
-    map.at(iTree)->SetBranchStatus("delay",kTRUE);
-    map.at(iTree)->SetBranchAddress("delay",&delay);
-
     for(long int iEvent = 0; iEvent < tree.at(iTree)->GetEntries()/reductionFactor; iEvent++){
+
       cout.flush();
-      if(iEvent % 100000 == 0) cout<<"\r"<<"iEvent "<<100*double(iEvent)/(tree.at(iTree)->GetEntries()/reductionFactor)<<" % ";
+      if(iEvent % 100000 == 0) 
+	cout<<"\r"<<"iEvent "<<100*double(iEvent)/(tree.at(iTree)->GetEntries()/reductionFactor)<<" % ";
 
       // take the event                                                                                                                                                  
       tree.at(iTree)->GetEntry(iEvent);
-      // take the map delay from the detid                                                                                                                                  
-      map.at(iTree)->GetEntryWithIndex(detid);
       // take the correction from the detid
       corrections->GetEntryWithIndex(detid);
 
@@ -136,10 +126,8 @@ void ChannnelPlots(const std::vector<TTree* > & tree,
       channelMap[detid][delay-correction]->Fill(value);
     }
     std::cout<<std::endl;
-    if(iTree != 0){
-      map.at(iTree)->SetDirectory(0);          
+    if(iTree != 0)
       files.at(iTree)->Close(); // to prevent high RAM occupancy    
-    }
   }
   std::cout<<"Loop on events terminated"<<std::endl;  
 
@@ -165,25 +153,16 @@ void ChannnelPlots(const std::vector<TTree* > & tree,
     TH1::AddDirectory(kFALSE);
     channelMapMean[iMap.first] = new TH1F(Form("detid_%d_mean",iMap.first),"",delayBins.size()-1,&delayBins[0]);    
 
-    for(int iBin = 0; iBin < channelMapMPV[iMap.first]->GetNbinsX()+1; iBin++){
-      channelMapMPV[iMap.first]->SetBinContent(iBin+1,0.);
-      channelMapMPV[iMap.first]->SetBinError(iBin+1,0.);
-      channelMapMean[iMap.first]->SetBinContent(iBin+1,0.);
-      channelMapMean[iMap.first]->SetBinError(iBin+1,0.);
-    }
-
     for(std::map<float,TH1F*>::const_iterator itHisto = iMap.second.begin(); itHisto != iMap.second.end(); itHisto++){
-      
       // to fill the Mean --> use always the histogram properties given its binning
       channelMapMean[iMap.first]->SetBinContent(channelMapMPV[iMap.first]->FindBin(itHisto->first),itHisto->second->GetMean());
       // as error use the error on the mean as a proxy
       channelMapMean[iMap.first]->SetBinError(channelMapMPV[iMap.first]->FindBin(itHisto->first),itHisto->second->GetMeanError());
 
-      if(not doFitOfClusterShape){ // take the MPV as the maximu of the histograms and store histogram in case
+      if(not doFitOfClusterShape){ // take the MPV as the maximum of the histograms and store histogram in case
 	channelMapMPV[iMap.first]->SetBinContent(channelMapMPV[iMap.first]->FindBin(itHisto->first),itHisto->second->GetBinCenter(itHisto->second->GetMaximumBin()));
 	// as error use the error on the mean as a proxy
-	channelMapMPV[iMap.first]->SetBinError(channelMapMPV[iMap.first]->FindBin(itHisto->first),itHisto->second->GetMeanError());
-	
+	channelMapMPV[iMap.first]->SetBinError(channelMapMPV[iMap.first]->FindBin(itHisto->first),itHisto->second->GetMeanError());	
 	// to fill the MPV: delay found by means of FindBin, take the bin center of the maximum bin --> is ok as soon as the histogram has enough bins
 	if(storeFitOfClusterShape and iChannel % 20 == 0){
 	  if(not outfile->GetDirectory(Form("Delay_%.2f",itHisto->first)))
@@ -379,7 +358,7 @@ void ChannnelPlots(const std::vector<TTree* > & tree,
 }
 
 
-void saveOutputTree(const vector<TTree*> & readoutMap, map<uint32_t,TH1F* > & mapHist, map<uint32_t,int> & fitStatus, const string & outputDIR, const string & postfix, const string & observable){
+void saveOutputTree(const vector<TTree*> & readoutMap, map<unsigned int,TH1F* > & mapHist, map<unsigned int,int> & fitStatus, const string & outputDIR, const string & postfix, const string & observable){
 
   TFile*  outputFile;
   TTree*  outputTree;
@@ -409,7 +388,7 @@ void saveOutputTree(const vector<TTree*> & readoutMap, map<uint32_t,TH1F* > & ma
   int      peakOutBoundaryRejected;
   vector<float> amplitude;        
   vector<float> amplitudeUnc;        
-  uint32_t detid;
+  unsigned int detid;
   
   outputFile->cd();
   outputTree->SetBranchStatus("*",kTRUE);
@@ -602,8 +581,7 @@ void saveOutputTree(const vector<TTree*> & readoutMap, map<uint32_t,TH1F* > & ma
 
 
 // by dedault some fit results are store in a root file, a text dump: detid fitted delay is produced, as well as deid delay uncertainty
-void delayValidationPerModule(			      
-			      string inputDIR, 
+void delayValidationPerModule(string inputDIR, 
 			      string file1        = "../data/nocorrection.root", // no correction file
 			      string postfix      = "merged", // sub string to be used to find merged files
 			      string observable   = "maxCharge",
@@ -615,7 +593,6 @@ void delayValidationPerModule(
   // prepare style and load macros
   setTDRStyle();
   gROOT->SetBatch(kTRUE);
-
   system(("mkdir -p "+outputDIR).c_str());
 
   // open the file and prepare the cluster tree, adding the other trees as frined --> memory consuming
@@ -642,8 +619,8 @@ void delayValidationPerModule(
   std::sort(fileList.begin(),fileList.end());
 
   std::cout<<"### Build the input TTree Vector"<<std::endl;
-  std::vector< TTree*> clusters;
-  std::vector< TTree*> readoutMap;
+  std::vector<TTree*> clusters;
+  std::vector<TTree*> readoutMap;
   for(auto ifile : fileList){    
     files.push_back(TFile::Open(ifile.c_str(),"READ"));    
     cout<<"file "<<ifile<<endl;
@@ -655,12 +632,12 @@ void delayValidationPerModule(
   TTree* delayCorrections = (TTree*)_file1->FindObjectAny("delayCorrections");
   
   //map with key the detId number, one profile associated to it
-  std::map<uint32_t,std::map<float,TH1F* > > channelMap; // for each delay value (i.e. run) gram for each detid storing the observable distribution
-  std::map<uint32_t,TH1F* > channelMapMean;
-  std::map<uint32_t,TH1F* > channelMapMPV;
-  std::map<uint32_t,int > fitStatusMean;
-  std::map<uint32_t,int > fitStatusMPV;
-  ChannnelPlots(clusters,readoutMap,delayCorrections,channelMap,channelMapMean,channelMapMPV,fitStatusMean,fitStatusMPV,observable,outputDIR);  
+  std::map<unsigned int,std::map<float,TH1F* > > channelMap; // for each delay value (i.e. run) gram for each detid storing the observable distribution
+  std::map<unsigned int,TH1F* > channelMapMean;
+  std::map<unsigned int,TH1F* > channelMapMPV;
+  std::map<unsigned int,int > fitStatusMean;
+  std::map<unsigned int,int > fitStatusMPV;
+  ChannnelPlots(clusters,delayCorrections,channelMap,channelMapMean,channelMapMPV,fitStatusMean,fitStatusMPV,observable,outputDIR);  
   
   // dumpt in a text file to be displayed on the tracker map and uncertainty  
   // produce outputs

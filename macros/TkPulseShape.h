@@ -26,7 +26,6 @@ Double_t fpeak_convoluted(Double_t *x, Double_t *par)
  f.SetParameter(2, par[2]);    
  f.SetParameter(3, par[3]);    
  return f.Integral(x[0]-par[4]/2.,x[0]+par[4]/2.,1.)/(par[4]);
- //return f.Integral(x[0]-par[4]/2.,x[0]+par[4]/2.,par,1.)/(par[4]);
 }
 
 Double_t fdeconv_convoluted(Double_t *x, Double_t *par)
@@ -56,8 +55,6 @@ TF1* GetPeakFitter()
    peak_fitter->SetParLimits(1,-100,0);
    peak_fitter->SetParLimits(2,0,200);
    peak_fitter->SetParLimits(3,5,100);
-//   peak_fitter->FixParameter(3,50);
-//   peak_fitter->SetParLimits(4,0,50);
    peak_fitter->FixParameter(4,22.5);
    peak_fitter->SetParameters(0.,-35,10,50,10);
    return peak_fitter;

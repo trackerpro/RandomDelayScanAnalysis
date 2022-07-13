@@ -18,23 +18,23 @@ using namespace std;
 static int  reductionFactor = 1;
 
 // create the plots in R slices 
-static std::map<int32_t, TH1F* > TIBMaxCharge;
-static std::map<int32_t, TH1F* > TIDMaxCharge;
-static std::map<int32_t, TH1F* > TOBMaxCharge;
-static std::map<int32_t, TH1F* > TECTMaxCharge;
-static std::map<int32_t, TH1F* > TECtMaxCharge;
+static std::map<unsigned int, TH1F* > TIBMaxCharge;
+static std::map<unsigned int, TH1F* > TIDMaxCharge;
+static std::map<unsigned int, TH1F* > TOBMaxCharge;
+static std::map<unsigned int, TH1F* > TECTMaxCharge;
+static std::map<unsigned int, TH1F* > TECtMaxCharge;
 
-static std::map<int32_t, TF1* > fitTIBMaxCharge;
-static std::map<int32_t, TF1* > fitTIDMaxCharge;
-static std::map<int32_t, TF1* > fitTOBMaxCharge;
-static std::map<int32_t, TF1* > fitTECTMaxCharge;
-static std::map<int32_t, TF1* > fitTECtMaxCharge;
+static std::map<unsigned int, TF1* > fitTIBMaxCharge;
+static std::map<unsigned int, TF1* > fitTIDMaxCharge;
+static std::map<unsigned int, TF1* > fitTOBMaxCharge;
+static std::map<unsigned int, TF1* > fitTECTMaxCharge;
+static std::map<unsigned int, TF1* > fitTECtMaxCharge;
 
-static std::map<int32_t, RooAbsPdf* > pdfTIBMaxCharge;
-static std::map<int32_t, RooAbsPdf* > pdfTIDMaxCharge;
-static std::map<int32_t, RooAbsPdf* > pdfTOBMaxCharge;
-static std::map<int32_t, RooAbsPdf* > pdfTECTMaxCharge;
-static std::map<int32_t, RooAbsPdf* > pdfTECtMaxCharge;
+static std::map<unsigned int, RooAbsPdf* > pdfTIBMaxCharge;
+static std::map<unsigned int, RooAbsPdf* > pdfTIDMaxCharge;
+static std::map<unsigned int, RooAbsPdf* > pdfTOBMaxCharge;
+static std::map<unsigned int, RooAbsPdf* > pdfTECTMaxCharge;
+static std::map<unsigned int, RooAbsPdf* > pdfTECtMaxCharge;
 
 TF1* makeLandauGausFit(TH1F* histoToFit, int & status, string subdetector, const float & delay, const string & observable, pair<float,RooAbsPdf*> & pair){
 
@@ -78,7 +78,6 @@ TF1* makeLandauGausFit(TH1F* histoToFit, int & status, string subdetector, const
 
 //// Per ring analysis
 void paritionPlots(TTree* tree, 
-		   TTree* map,
 		   const std::string & observable,
 		   const std::string & outputDIR){
 
@@ -90,8 +89,8 @@ void paritionPlots(TTree* tree,
 
   cout<<"tree set branch status "<<endl;
   // TTree Reader appear not to be working with addFriend and EventList
-  uint32_t detid;
-  float    maxCharge, clCorrectedSignalOverNoise, clSignalOverNoise, clglobalX, clglobalY, clglobalZ, thickness, obs;
+  uunsigned int detid;
+  float    maxCharge, clCorrectedSignalOverNoise, clSignalOverNoise, clglobalX, clglobalY, clglobalZ, thickness, obs, delay;
   tree->SetBranchStatus("*",kFALSE);
   tree->SetBranchStatus("detid",kTRUE);
   tree->SetBranchStatus("clCorrectedSignalOverNoise",kTRUE);
@@ -100,6 +99,7 @@ void paritionPlots(TTree* tree,
   tree->SetBranchStatus("clglobalY",kTRUE);
   tree->SetBranchStatus("clglobalZ",kTRUE);
   tree->SetBranchStatus("thickness",kTRUE);
+  tree->SetBranchStatus("delay",kTRUE);
   tree->SetBranchStatus(observable.c_str(),kTRUE);
   tree->SetBranchAddress("detid",&detid);
   tree->SetBranchAddress("clCorrectedSignalOverNoise",&clCorrectedSignalOverNoise);
@@ -108,13 +108,8 @@ void paritionPlots(TTree* tree,
   tree->SetBranchAddress("clglobalY",&clglobalY);
   tree->SetBranchAddress("clglobalZ",&clglobalZ);
   tree->SetBranchAddress("thickness",&thickness);
+  tree->SetBranchAddress("delay",&delay);
   tree->SetBranchAddress(observable.c_str(),&obs);
-
-  float delay;
-  map->SetBranchStatus("*",kFALSE);
-  map->SetBranchStatus("detid",kTRUE);
-  map->SetBranchStatus("delay",kTRUE);
-  map->SetBranchAddress("delay",&delay);
 
   // create vectors for the different Profiles
   float yMin   = 0, yMax = 0;
@@ -126,14 +121,12 @@ void paritionPlots(TTree* tree,
   long int iEvent = 0;
   for( ; iEvent < tree->GetEntries()/reductionFactor; iEvent++){    
 
-    tree->GetEntry(iEvent);
-    // take the map delay from the detid
-    map->GetEntryWithIndex(detid);
-
     cout.flush();
     if(iEvent % 100000 == 0) cout<<"\r"<<"iEvent "<<100*double(iEvent)/(tree->GetEntries()/reductionFactor)<<" % ";
+
+    tree->GetEntry(iEvent);
     
-    uint32_t subdetid    = int((detid-0x10000000)/0x2000000);
+    int subdetid  = int((detid-0x10000000)/0x2000000);
     float    R           = sqrt(clglobalX*clglobalX+clglobalY*clglobalY+clglobalZ*clglobalZ);
     float    value       = 0;
     if(observable == "maxCharge")
@@ -353,11 +346,10 @@ void makeChargeDistributionPerPartition(string file0,  // inputfile
   std::cout<<"Open Input Files"<<std::endl;
   TFile* _file0 (TFile::Open(file0.c_str()));
   TTree* clusters   ((TTree*)_file0->FindObjectAny("clusters"));
-  TTree* readoutMap ((TTree*)_file0->FindObjectAny("readoutMap"));
   clusters->SetEventList(0);  
   
   // cumulate all rings
-  paritionPlots(clusters,readoutMap,observable,outputDIR);
+  paritionPlots(clusters,observable,outputDIR);
   TCanvas* canvas = new TCanvas("canvas","",600,650);
   canvas->cd();
   plotDistributions(canvas,outputDIR);

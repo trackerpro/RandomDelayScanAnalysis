@@ -93,7 +93,7 @@ skimTrees(<input file>, <outputfile>, <isBon = rule the selection string written
 python scripts/submitTreeSkim.py  --inputDIR <directory with all the files for a given run, produced by crab is ok> --outputDIR <output location on Cern EOS> --outputBaseName <base name for the output root file> --isBOn (in case you want to apply bOn selections) --jobDIR <JOBDIR> --queque <QUEQUE> --submit
 ```
 
-## Merge trees belonging to a given run:
+## Merge trees belonging to a given run (optional):
 
 * Script to automatically merge files into a single ROOT file. The reference file should be one of the files that is going to be merged, from which the readout map is taken.
 

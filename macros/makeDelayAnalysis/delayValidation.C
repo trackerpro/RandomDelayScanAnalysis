@@ -168,35 +168,34 @@ int makeLandauGausFit(TH1F* histoToFit, TH1F* histoToFill, string subdetector, c
 
 }
 
-static std::map<uint32_t,std::map<float,TH1F* > > TIBlayers; // map layer:delay:distribution
-static std::map<uint32_t,std::map<float,TH1F* > > TOBlayers;
-static std::map<uint32_t,std::map<float,TH1F* > > TIDlayers;
-static std::map<uint32_t,std::map<float,TH1F* > > TECPTlayers;
-static std::map<uint32_t,std::map<float,TH1F* > > TECPtlayers;
-static std::map<uint32_t,std::map<float,TH1F* > > TECMTlayers;
-static std::map<uint32_t,std::map<float,TH1F* > > TECMtlayers;
+static std::map<unsigned int,std::map<float,TH1F* > > TIBlayers; // map layer:delay:distribution
+static std::map<unsigned int,std::map<float,TH1F* > > TOBlayers;
+static std::map<unsigned int,std::map<float,TH1F* > > TIDlayers;
+static std::map<unsigned int,std::map<float,TH1F* > > TECPTlayers;
+static std::map<unsigned int,std::map<float,TH1F* > > TECPtlayers;
+static std::map<unsigned int,std::map<float,TH1F* > > TECMTlayers;
+static std::map<unsigned int,std::map<float,TH1F* > > TECMtlayers;
 
-static std::map<uint32_t,TH1F* > TIBlayersMean; // map delay:distribution
-static std::map<uint32_t,TH1F* > TOBlayersMean;
-static std::map<uint32_t,TH1F* > TIDlayersMean;
-static std::map<uint32_t,TH1F* > TECPTlayersMean;
-static std::map<uint32_t,TH1F* > TECPtlayersMean;
-static std::map<uint32_t,TH1F* > TECMTlayersMean;
-static std::map<uint32_t,TH1F* > TECMtlayersMean;
+static std::map<unsigned int,TH1F* > TIBlayersMean; // map delay:distribution
+static std::map<unsigned int,TH1F* > TOBlayersMean;
+static std::map<unsigned int,TH1F* > TIDlayersMean;
+static std::map<unsigned int,TH1F* > TECPTlayersMean;
+static std::map<unsigned int,TH1F* > TECPtlayersMean;
+static std::map<unsigned int,TH1F* > TECMTlayersMean;
+static std::map<unsigned int,TH1F* > TECMtlayersMean;
 
-static std::map<uint32_t,TH1F* > TIBlayersMPV; // map delay:distribution
-static std::map<uint32_t,TH1F* > TOBlayersMPV;
-static std::map<uint32_t,TH1F* > TIDlayersMPV;
-static std::map<uint32_t,TH1F* > TECPTlayersMPV;
-static std::map<uint32_t,TH1F* > TECPtlayersMPV;
-static std::map<uint32_t,TH1F* > TECMTlayersMPV;
-static std::map<uint32_t,TH1F* > TECMtlayersMPV;
+static std::map<unsigned int,TH1F* > TIBlayersMPV; // map delay:distribution
+static std::map<unsigned int,TH1F* > TOBlayersMPV;
+static std::map<unsigned int,TH1F* > TIDlayersMPV;
+static std::map<unsigned int,TH1F* > TECPTlayersMPV;
+static std::map<unsigned int,TH1F* > TECPtlayersMPV;
+static std::map<unsigned int,TH1F* > TECMTlayersMPV;
+static std::map<unsigned int,TH1F* > TECMtlayersMPV;
 
 
 
 /// function that runs on the evnet and produce profiles for layers
 void LayerPlots(TTree* tree, 
-		TTree* map,
 		TTree* corrections,
 		const string & observable,
 		const string & outputDIR) {
@@ -206,8 +205,8 @@ void LayerPlots(TTree* tree,
   std::cout<<"######################################################"<<std::endl;
   
   // set branches for the cluster, readoutmap and no corrections trees
-  uint32_t detid;
-  float    clCorrectedSignalOverNoise, clSignalOverNoise, clglobalX, clglobalY, clglobalZ, thickness, obs;
+  unsigned int detid;
+  float    clCorrectedSignalOverNoise, clSignalOverNoise, clglobalX, clglobalY, clglobalZ, thickness, obs, delay;
   tree->SetBranchStatus("*",kFALSE);
   tree->SetBranchStatus("detid",kTRUE);
   tree->SetBranchStatus("clCorrectedSignalOverNoise",kTRUE);
@@ -216,6 +215,7 @@ void LayerPlots(TTree* tree,
   tree->SetBranchStatus("clglobalY",kTRUE);
   tree->SetBranchStatus("clglobalZ",kTRUE);
   tree->SetBranchStatus("thickness",kTRUE);
+  tree->SetBranchStatus("delay",kTRUE);
   tree->SetBranchStatus(observable.c_str(),kTRUE);
   tree->SetBranchAddress("detid",&detid);
   tree->SetBranchAddress("clCorrectedSignalOverNoise",&clCorrectedSignalOverNoise);
@@ -224,13 +224,8 @@ void LayerPlots(TTree* tree,
   tree->SetBranchAddress("clglobalY",&clglobalY);
   tree->SetBranchAddress("clglobalZ",&clglobalZ);
   tree->SetBranchAddress("thickness",&thickness);
+  tree->SetBranchAddress("delay",&delay);
   tree->SetBranchAddress(observable.c_str(),&obs);
-
-  float delay;
-  map->SetBranchStatus("*",kFALSE);
-  map->SetBranchStatus("detid",kTRUE);
-  map->SetBranchStatus("delay",kTRUE);
-  map->SetBranchAddress("delay",&delay);
 
   int   correction;
   corrections->SetBranchStatus("*",kFALSE);
@@ -251,19 +246,17 @@ void LayerPlots(TTree* tree,
   for( ; iEvent < tree->GetEntries()/reductionFactor; iEvent++){    
     // take the event
     tree->GetEntry(iEvent);
-    // take the map delay from the detid
-    map->GetEntryWithIndex(detid);
     // take the correction from the detid
     corrections->GetEntryWithIndex(detid);
 
     cout.flush();
     if(iEvent % 100000 == 0) cout<<"\r"<<"iEvent "<<100*double(iEvent)/(tree->GetEntries()/reductionFactor)<<" % ";
     
-    uint32_t subdetid    = int((detid-0x10000000)/0x2000000);
-    uint32_t barrellayer = int((detid%33554432)/0x4000);
-    uint32_t TIDlayer    = int((detid%33554432)/0x800)%4;
-    uint32_t TECPlayer   = int((detid%33554432)/0x4000)-32;
-    uint32_t TECMlayer   = int((detid%33554432)/0x4000)-16;
+    unsigned int subdetid    = int((detid-0x10000000)/0x2000000);
+    unsigned int barrellayer = int((detid%33554432)/0x4000);
+    unsigned int TIDlayer    = int((detid%33554432)/0x800)%4;
+    unsigned int TECPlayer   = int((detid%33554432)/0x4000)-32;
+    unsigned int TECMlayer   = int((detid%33554432)/0x4000)-16;
     float    R           = sqrt(clglobalX*clglobalX+clglobalY*clglobalY+clglobalZ*clglobalZ);
 
     float value = 0;
@@ -620,56 +613,55 @@ void LayerPlots(TTree* tree,
 }
 
 // create the plots in R slices 
-static std::map<uint32_t, std::map<float,TH1F* > > TIBrs;
-static std::map<uint32_t, std::map<float,TH1F* > > TIDrs;
-static std::map<uint32_t, std::map<float,TH1F* > > TOBrs;
-static std::map<uint32_t, std::map<float,TH1F* > > TECPTrs;
-static std::map<uint32_t, std::map<float,TH1F* > > TECPtrs;
-static std::map<uint32_t, std::map<float,TH1F* > > TECMTrs;
-static std::map<uint32_t, std::map<float,TH1F* > > TECMtrs;
-static std::map<uint32_t, std::map<float,TH1F* > > TIB;
-static std::map<uint32_t, std::map<float,TH1F* > > TID;
-static std::map<uint32_t, std::map<float,TH1F* > > TOB;
-static std::map<uint32_t, std::map<float,TH1F* > > TECPT;
-static std::map<uint32_t, std::map<float,TH1F* > > TECPt;
-static std::map<uint32_t, std::map<float,TH1F* > > TECMT;
-static std::map<uint32_t, std::map<float,TH1F* > > TECMt;
+static std::map<unsigned int, std::map<float,TH1F* > > TIBrs;
+static std::map<unsigned int, std::map<float,TH1F* > > TIDrs;
+static std::map<unsigned int, std::map<float,TH1F* > > TOBrs;
+static std::map<unsigned int, std::map<float,TH1F* > > TECPTrs;
+static std::map<unsigned int, std::map<float,TH1F* > > TECPtrs;
+static std::map<unsigned int, std::map<float,TH1F* > > TECMTrs;
+static std::map<unsigned int, std::map<float,TH1F* > > TECMtrs;
+static std::map<unsigned int, std::map<float,TH1F* > > TIB;
+static std::map<unsigned int, std::map<float,TH1F* > > TID;
+static std::map<unsigned int, std::map<float,TH1F* > > TOB;
+static std::map<unsigned int, std::map<float,TH1F* > > TECPT;
+static std::map<unsigned int, std::map<float,TH1F* > > TECPt;
+static std::map<unsigned int, std::map<float,TH1F* > > TECMT;
+static std::map<unsigned int, std::map<float,TH1F* > > TECMt;
 
-static std::map<uint32_t, TH1F* > TIBrsMean;
-static std::map<uint32_t, TH1F* > TIDrsMean;
-static std::map<uint32_t, TH1F* > TOBrsMean;
-static std::map<uint32_t, TH1F* > TECPTrsMean;
-static std::map<uint32_t, TH1F* > TECPtrsMean;
-static std::map<uint32_t, TH1F* > TECMTrsMean;
-static std::map<uint32_t, TH1F* > TECMtrsMean;
+static std::map<unsigned int, TH1F* > TIBrsMean;
+static std::map<unsigned int, TH1F* > TIDrsMean;
+static std::map<unsigned int, TH1F* > TOBrsMean;
+static std::map<unsigned int, TH1F* > TECPTrsMean;
+static std::map<unsigned int, TH1F* > TECPtrsMean;
+static std::map<unsigned int, TH1F* > TECMTrsMean;
+static std::map<unsigned int, TH1F* > TECMtrsMean;
 
-static std::map<uint32_t, TH1F* > TIBMean;
-static std::map<uint32_t, TH1F* > TIDMean;
-static std::map<uint32_t, TH1F* > TOBMean;
-static std::map<uint32_t, TH1F* > TECPTMean;
-static std::map<uint32_t, TH1F* > TECPtMean;
-static std::map<uint32_t, TH1F* > TECMTMean;
-static std::map<uint32_t, TH1F* > TECMtMean;
+static std::map<unsigned int, TH1F* > TIBMean;
+static std::map<unsigned int, TH1F* > TIDMean;
+static std::map<unsigned int, TH1F* > TOBMean;
+static std::map<unsigned int, TH1F* > TECPTMean;
+static std::map<unsigned int, TH1F* > TECPtMean;
+static std::map<unsigned int, TH1F* > TECMTMean;
+static std::map<unsigned int, TH1F* > TECMtMean;
 
-static std::map<uint32_t, TH1F* > TIBrsMPV;
-static std::map<uint32_t, TH1F* > TIDrsMPV;
-static std::map<uint32_t, TH1F* > TOBrsMPV;
-static std::map<uint32_t, TH1F* > TECPTrsMPV;
-static std::map<uint32_t, TH1F* > TECPtrsMPV;
-static std::map<uint32_t, TH1F* > TECMTrsMPV;
-static std::map<uint32_t, TH1F* > TECMtrsMPV;
-static std::map<uint32_t, TH1F* > TIBMPV;
-static std::map<uint32_t, TH1F* > TIDMPV;
-static std::map<uint32_t, TH1F* > TOBMPV;
-static std::map<uint32_t, TH1F* > TECPTMPV;
-static std::map<uint32_t, TH1F* > TECPtMPV;
-static std::map<uint32_t, TH1F* > TECMTMPV;
-static std::map<uint32_t, TH1F* > TECMtMPV;
+static std::map<unsigned int, TH1F* > TIBrsMPV;
+static std::map<unsigned int, TH1F* > TIDrsMPV;
+static std::map<unsigned int, TH1F* > TOBrsMPV;
+static std::map<unsigned int, TH1F* > TECPTrsMPV;
+static std::map<unsigned int, TH1F* > TECPtrsMPV;
+static std::map<unsigned int, TH1F* > TECMTrsMPV;
+static std::map<unsigned int, TH1F* > TECMtrsMPV;
+static std::map<unsigned int, TH1F* > TIBMPV;
+static std::map<unsigned int, TH1F* > TIDMPV;
+static std::map<unsigned int, TH1F* > TOBMPV;
+static std::map<unsigned int, TH1F* > TECPTMPV;
+static std::map<unsigned int, TH1F* > TECPtMPV;
+static std::map<unsigned int, TH1F* > TECMTMPV;
+static std::map<unsigned int, TH1F* > TECMtMPV;
 
 
 //// Per ring analysis
 void RPlots(TTree* tree, 
-	    TTree* map,
 	    TTree* corrections,
 	    const std::string & observable,
 	    const std::string & outputDIR){
@@ -682,8 +674,8 @@ void RPlots(TTree* tree,
 
   cout<<"tree set branch status "<<endl;
   // TTree Reader appear not to be working with addFriend and EventList
-  uint32_t detid;
-  float    maxCharge, clCorrectedSignalOverNoise, clSignalOverNoise, clglobalX, clglobalY, clglobalZ, thickness, obs;
+  unsigned int detid;
+  float    maxCharge, clCorrectedSignalOverNoise, clSignalOverNoise, clglobalX, clglobalY, clglobalZ, thickness, obs, delay;
   tree->SetBranchStatus("*",kFALSE);
   tree->SetBranchStatus("detid",kTRUE);
   tree->SetBranchStatus("clCorrectedSignalOverNoise",kTRUE);
@@ -692,6 +684,7 @@ void RPlots(TTree* tree,
   tree->SetBranchStatus("clglobalY",kTRUE);
   tree->SetBranchStatus("clglobalZ",kTRUE);
   tree->SetBranchStatus("thickness",kTRUE);
+  tree->SetBranchStatus("delay",kTRUE);
   tree->SetBranchStatus(observable.c_str(),kTRUE);
   tree->SetBranchAddress("detid",&detid);
   tree->SetBranchAddress("clCorrectedSignalOverNoise",&clCorrectedSignalOverNoise);
@@ -702,13 +695,7 @@ void RPlots(TTree* tree,
   tree->SetBranchAddress("thickness",&thickness);
   tree->SetBranchAddress(observable.c_str(),&obs);
 
-  float delay;
-  map->SetBranchStatus("*",kFALSE);
-  map->SetBranchStatus("detid",kTRUE);
-  map->SetBranchStatus("delay",kTRUE);
-  map->SetBranchAddress("delay",&delay);
-
-  int   correction;
+  int correction;
   corrections->SetBranchStatus("*",kFALSE);
   corrections->SetBranchStatus("detid",kTRUE);
   corrections->SetBranchStatus("correction",kTRUE);
@@ -727,15 +714,13 @@ void RPlots(TTree* tree,
   long int iEvent = 0;
   for( ; iEvent < tree->GetEntries()/reductionFactor; iEvent++){    
     tree->GetEntry(iEvent);
-    // take the map delay from the detid
-    map->GetEntryWithIndex(detid);
     // take the correction from the detid
     corrections->GetEntryWithIndex(detid);
 
     cout.flush();
     if(iEvent % 100000 == 0) cout<<"\r"<<"iEvent "<<100*double(iEvent)/(tree->GetEntries()/reductionFactor)<<" % ";
     
-    uint32_t subdetid    = int((detid-0x10000000)/0x2000000);
+    unsigned int subdetid = int((detid-0x10000000)/0x2000000);
     float    R           = sqrt(clglobalX*clglobalX+clglobalY*clglobalY+clglobalZ*clglobalZ);
     float    value       = 0;
     if(observable == "maxCharge")
@@ -1132,7 +1117,6 @@ void delayValidation(string file0,  // inputfile
   TFile* _file0  = TFile::Open(file0.c_str());
   TFile* _file1  = TFile::Open(file1.c_str());
   TTree* clusters   = (TTree*)_file0->FindObjectAny("clusters");
-  TTree* readoutMap = (TTree*)_file0->FindObjectAny("readoutMap");
   TTree* delayCorrections  = (TTree*)_file1->FindObjectAny("delayCorrections");  
   clusters->SetEventList(0);  
   
@@ -1140,7 +1124,7 @@ void delayValidation(string file0,  // inputfile
   if(plotLayer){
    
     // run per layer analysis
-    LayerPlots(clusters,readoutMap,delayCorrections,observable,outputDIR);
+    LayerPlots(clusters,delayCorrections,observable,outputDIR);
 
     // canvas for layer one mean observable result
     TCanvas* c1_mean = prepareCanvas("TIB_layers_mean",observable);
@@ -1281,7 +1265,7 @@ void delayValidation(string file0,  // inputfile
   if(plotSlices){
 
     // make the hisograms
-    RPlots(clusters,readoutMap,delayCorrections,observable,outputDIR);
+    RPlots(clusters,delayCorrections,observable,outputDIR);
     
     // Per ring in TIB
     TCanvas* c1b_mean = prepareCanvas("TIB_distance_mean",observable);
@@ -1410,7 +1394,7 @@ void delayValidation(string file0,  // inputfile
     TECRing.nDivision = 1;
     
     // cumulate all rings
-    RPlots(clusters,readoutMap,delayCorrections,observable,outputDIR);
+    RPlots(clusters,delayCorrections,observable,outputDIR);
 
     // create the plots per partition
     std::vector<TH1F* > allPartitionMean;

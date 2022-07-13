@@ -40,7 +40,6 @@ void makeChargeDistributionPerModule(string file0,
   cout<<"########### fitChargeDistribution analysis ##############"<<endl;
   std::unique_ptr<TFile> _file0 (TFile::Open(file0.c_str()));
   std::unique_ptr<TTree> clusters   ((TTree*)_file0->FindObjectAny("clusters"));
-  std::unique_ptr<TTree> readoutMap ((TTree*)_file0->FindObjectAny("readoutMap"));
   
   // apply common preselection cuts on events, track and cluster quantities
   // make a index as a funcion of det id
@@ -48,22 +47,19 @@ void makeChargeDistributionPerModule(string file0,
   
   // set only some branches
   uint32_t detid;
-  float    obs, clSignalOverNoise, clCorrectedSignalOverNoise;
+  float    obs, clSignalOverNoise, clCorrectedSignalOverNoise, delay;
   clusters->SetBranchStatus("*",kFALSE);
   clusters->SetBranchStatus("detid",kTRUE);
   clusters->SetBranchStatus("clCorrectedSignalOverNoise",kTRUE);
   clusters->SetBranchStatus("clSignalOverNoise",kTRUE);
+  clusters->SetBranchStatus("delay",kTRUE);
   clusters->SetBranchStatus(observable.c_str(),kTRUE);
   clusters->SetBranchAddress("detid",&detid);
   clusters->SetBranchAddress("clSignalOverNoise",&clSignalOverNoise);
   clusters->SetBranchAddress("clCorrectedSignalOverNoise",&clCorrectedSignalOverNoise);
+  clusters->SetBranchAddress("delay",&delay);
   clusters->SetBranchAddress(observable.c_str(),&obs);
 
-  float delay;
-  readoutMap->SetBranchStatus("*",kFALSE);
-  readoutMap->SetBranchStatus("detid",kTRUE);
-  readoutMap->SetBranchStatus("delay",kTRUE);
-  readoutMap->SetBranchAddress("delay",&delay);
 
   float xMin = 0., xMax = 0.;
   int   nBin = 0;
@@ -79,8 +75,7 @@ void makeChargeDistributionPerModule(string file0,
 
     // apply cluster selections
     clusters->GetEntry(iCluster);
-    //take the related event in the readOutmap
-    readoutMap->GetEntryWithIndex(detid);
+
     if(fabs(delay) < delayMin or fabs(delay) > delayMax) continue;
     
     selectedEvents++;

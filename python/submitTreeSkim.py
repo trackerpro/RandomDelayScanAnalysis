@@ -45,16 +45,16 @@ if __name__ == '__main__':
    ## generate binary file                                                                                                                                                      
    ROOT.gROOT.ProcessLine(".L ../macros/makeSkimTrees/skimTrees.C");
 
-   out = subprocess.run(["rm -r "+options.jobDIR,"mkdir -p "+options.jobDIR],shell=True);
+   out = subprocess.run("rm -r "+options.jobDIR,shell=True);
+   out = subprocess.run("mkdir -p "+options.jobDIR,shell=True);
    
    ## make the file list ... typically all the files of a given run
    fileList = [];
-   for line in glob.globa(options.inputDIR+"/*root",recursive=True)
+   for line in glob.glob(options.inputDIR+"/**/*.root", recursive=True):
       if line == "": continue;
       if ".root" in line:
          line = line.replace('\n','');
          fileList.append(line);
-   out = subprocess.run(["rm file_temp.txt",shell=True);
    print ("----> Found",len(fileList),"inside the input directory");
 
    #### given n-files per job calculate and create jobs
@@ -120,6 +120,7 @@ if __name__ == '__main__':
    out = subprocess.run('chmod a+x %s/condor_job.sh'%(options.jobDIR),shell=True);
    
    condor_job = open("%s/condor_job.sub"%(options.jobDIR),"w");
+   condor_job.write("universe = vanilla\n");
    condor_job.write("executable = %s/%s/condor_job.sh\n"%(currentDIR,options.jobDIR));
    condor_job.write("arguments = $(ProcId)\n");
    condor_job.write("output = %s/%s/condor_job_$(ProcId).out\n"%(currentDIR,options.jobDIR));
@@ -128,11 +129,10 @@ if __name__ == '__main__':
    condor_job.write("transfer_output_files=\"\"\n");
    condor_job.write("when_to_transfer_output = ON_EXIT\n");
    condor_job.write("should_transfer_files   = YES\n");
-   condor_job.write("universe = vanilla\n");
-   condor_job.write("+JobFlavour = \""+options.queque+"\"\n");
-   condor_job.write("queue "+str(njobs)+"\n");
    condor_job.write("request_cpus   = "+str(options.nthreads)+"\n");
    condor_job.write("request_memory = "+str(2000*options.nthreads)+"\n");
+   condor_job.write("+JobFlavour = \""+options.queque+"\"\n");
+   condor_job.write("queue "+str(njobs)+"\n");
    condor_job.close();
       
    if options.submit:

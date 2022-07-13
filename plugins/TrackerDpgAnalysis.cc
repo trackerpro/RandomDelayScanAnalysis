@@ -203,9 +203,9 @@ private:
   float qoverp_, xPCA_, yPCA_, zPCA_, trkWeightpvtx_;
   float charge_, p_, pt_;
   float bsX0_, bsY0_, bsZ0_, bsSigmaZ_, bsDxdz_, bsDydz_;
-  float delay_;
+  float delayrandom_, delay_;
   float lowPixelProbabilityFraction_;
-
+  std::map<unsigned int, float> delayDetIdMap_;
 };
 
 //
@@ -525,6 +525,15 @@ TrackerDpgAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup& iSe
       detid_ = detid;
       lldChannel_ = 1+(int(floor(iter->barycenter()))/256);
       if(lldChannel_==2 && nstrips==512) lldChannel_=3;
+      // Not yet started with the first random map
+      if(delayrange_ == 0)
+	delay_ = -1;
+      else{
+	delay_ = delayDetIdMap_[detid_]+delaystepsize_*delaystep_*(25./24.);
+	if(std::round(delay_) > delayrange_) {
+	  delay_ -= (2*delayrange_+delaystepsize_)*(25./24.);
+	}
+      }
       if((functionality_offtrackClusters_&&!onTrack_)||(functionality_ontrackClusters_&&onTrack_)) 
 	clusters_->Fill();
     }
@@ -584,18 +593,19 @@ void TrackerDpgAnalysis::beginRun(const edm::Run& iRun, const edm::EventSetup& i
 	fedId_ = conn->fedId();
 	fedCh_ = conn->fedCh();
 	fiberLength_ = conn->fiberLength();
-	delay_ = delayMap[dcuId_];
+	delayrandom_ = delayMap[dcuId_];
+	delayDetIdMap_[detid_] = delayrandom_;
 	const StripGeomDetUnit* sgdu = static_cast<const StripGeomDetUnit*>(tracker_->idToDet(detid_));
 	Surface::GlobalPoint gp = sgdu->surface().toGlobal(LocalPoint(0,0));
 	globalX_ = gp.x();
 	globalY_ = gp.y();
 	globalZ_ = gp.z();
 	readoutmap_->Fill();
-	themap.fill_current_val(detid_,delay_);
+	themap.fill_current_val(detid_,delayrandom_);
       }
     }
   }
-  
+
   // Naming convention from DAQ TK is TrackerMapDelay_Run<number>_pll.csv or TrackerMapDelay_Run<number>_fed.csv .. extract run number
   std::stringstream delayName (delayFileName_);
   std::string segment;
@@ -715,12 +725,14 @@ void TrackerDpgAnalysis::beginJob(){
   clusters_->Branch("stripLength",&stripLength_,"stripLength/F");
   clusters_->Branch("detid",&detid_,"detid/i");
   clusters_->Branch("lldChannel",&lldChannel_,"lldChannel/i");
+  clusters_->Branch("delay",&delay_,"delay/F");
   
   // create a tree for tracks   
   tracks_ = dir->make<TTree>("tracks","tracks information");
   tracks_->Branch("eventid",&eventid_,"eventid/i");
   tracks_->Branch("runid",&runid_,"runid/i");
   tracks_->Branch("lumi",&lumisec_,"lumi/i");
+  tracks_->Branch("vertexid",&vertexid_,"vertexid/i");
   tracks_->Branch("trackid",&globaltrackid_,"trackid/i");
   tracks_->Branch("chi2",&chi2_,"chi2/F");
   tracks_->Branch("eta",&eta_,"eta/F");
@@ -755,7 +767,6 @@ void TrackerDpgAnalysis::beginJob(){
   tracks_->Branch("zPCA",&zPCA_,"zPCA/F");
   tracks_->Branch("nLayers",&nLayers_,"nLayers/i");
   tracks_->Branch("trkWeightpvtx",&trkWeightpvtx_,"trkWeightpvtx/F");
-  tracks_->Branch("vertexid",&vertexid_,"vertexid/i");
   
   // cabling
   readoutmap_ = dir->make<TTree>("readoutMap","cabling map");
@@ -772,7 +783,7 @@ void TrackerDpgAnalysis::beginJob(){
   readoutmap_->Branch("fiberLength",&fiberLength_,"fiberLength/i");
   readoutmap_->Branch("moduleName",&moduleName_);
   readoutmap_->Branch("moduleId",&moduleId_);
-  readoutmap_->Branch("delay",&delay_,"delay/F");
+  readoutmap_->Branch("delaymap",&delayrandom_,"delaymap/F");
   readoutmap_->Branch("globalX",&globalX_,"globalX/F");
   readoutmap_->Branch("globalY",&globalY_,"globalY/F");
   readoutmap_->Branch("globalZ",&globalZ_,"globalZ/F");
