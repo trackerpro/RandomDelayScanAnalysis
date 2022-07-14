@@ -31,7 +31,7 @@ void TreeMerge(const string & destinationFile,
   for(auto file : fileList)
     inputFiles += file+" ";
   cout<<inputFiles<<endl;
-  gSystem->Exec(Form("hadd -j %d -f -d %s -ff -O %s %s",numberOfThreads,inputDirectoryPath.c_str(),destinationFile.c_str(),inputFiles.c_str()));
+  gSystem->Exec(Form("hadd -j %d -f -d %s -O %s %s",numberOfThreads,inputDirectoryPath.c_str(),destinationFile.c_str(),inputFiles.c_str()));
 
   std::cout << "Reindexing the element of the merged tree..."  << std::endl;
   // just take the first tree of those merged as reference

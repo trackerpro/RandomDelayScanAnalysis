@@ -29,7 +29,7 @@ parser.add_option('--clusterSelection', action="store", type="string", dest="clu
 parser.add_option('--nthreads',       action="store", type=int,      dest="nthreads",    default=4,   help="number of threads for each job")
 parser.add_option('--filesPerJob',    action="store", type=int,      dest="filesPerJob", default=5,   help="number of files for each job")
 parser.add_option('--jobDIR',       action="store", type="string", dest="jobDIR",  default="",        help="directory for job")
-parser.add_option('--queque',       action="store", type="string", dest="queque",  default="longlunch",        help="queque for LSF")
+parser.add_option('--queque',       action="store", type="string", dest="queque",  default="workday",        help="queque for HTCondor CERN")
 parser.add_option('--submit',       action="store_true",           dest="submit",                     help="submit")
 
 (options, args) = parser.parse_args()

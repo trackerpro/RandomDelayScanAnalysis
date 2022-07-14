@@ -77,7 +77,7 @@ TF1* makeLandauGausFit(TH1F* histoToFit, int & status, string subdetector, const
 
 
 //// Per ring analysis
-void paritionPlots(TTree* tree, 
+void paritionPlots(TChain* tree, 
 		   const std::string & observable,
 		   const std::string & outputDIR){
 
@@ -89,7 +89,7 @@ void paritionPlots(TTree* tree,
 
   cout<<"tree set branch status "<<endl;
   // TTree Reader appear not to be working with addFriend and EventList
-  uunsigned int detid;
+  unsigned int detid;
   float    maxCharge, clCorrectedSignalOverNoise, clSignalOverNoise, clglobalX, clglobalY, clglobalZ, thickness, obs, delay;
   tree->SetBranchStatus("*",kFALSE);
   tree->SetBranchStatus("detid",kTRUE);
@@ -319,7 +319,7 @@ void plotDistributions(TCanvas* canvas, const string & outputDIR){
 
 
 /// main function that run the analysis --> produce one plot per delay value showing the 4 partitions on the same canvas
-void makeChargeDistributionPerPartition(string file0,  // inputfile
+void makeChargeDistributionPerPartition(string inputDIR,  // inputfile
 					string observable   = "maxCharge",   // observable to be considered: maxCharge, S/N ..etc
 					string outputDIR    = "distributionMaxChargePerPartition" // output directory name
 					){
@@ -344,8 +344,8 @@ void makeChargeDistributionPerPartition(string file0,  // inputfile
   std::cout<<"################################################"<<std::endl;
 
   std::cout<<"Open Input Files"<<std::endl;
-  TFile* _file0 (TFile::Open(file0.c_str()));
-  TTree* clusters   ((TTree*)_file0->FindObjectAny("clusters"));
+  TChain* clusters = new TChain("clusters","clusters");
+  clusters->Add((inputDIR+"/*root").c_str());
   clusters->SetEventList(0);  
   
   // cumulate all rings

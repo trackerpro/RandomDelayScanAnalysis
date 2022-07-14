@@ -131,8 +131,13 @@ void skimTrees(const string & inputFileName,
   
   cout<<"Merge trees and write output "<<endl;
   TTree* final_output_tree = TTree::MergeTrees(tree_list); 
+  TFriendElement* fr = (TFriendElement*) final_output_tree->GetListOfFriends()->FindObject("events");
+  final_output_tree->GetListOfFriends()->Remove(fr);
+  fr = (TFriendElement*) final_output_tree->GetListOfFriends()->FindObject("tracks");
+  final_output_tree->GetListOfFriends()->Remove(fr);
+  fr = (TFriendElement*) final_output_tree->GetListOfFriends()->FindObject("vertices");
+  final_output_tree->GetListOfFriends()->Remove(fr);
   final_output_tree->Write("clusters",TObject::kOverwrite);
-  final_output_tree->Write("events",TObject::kOverwrite);
 
   /// Just use the first file here
   cout<<"### Copy the PSU map in the output map "<<endl;

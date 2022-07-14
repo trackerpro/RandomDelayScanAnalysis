@@ -20,7 +20,7 @@ const bool  verbosity = false;
 // reduce the number of events by                                                                                                                                                                     
 static int  reductionFactor = 1;
 
-void makeChargeDistributionPerModule(string file0, 
+void makeChargeDistributionPerModule(string inputDIR, 
 				     string outputDirectory, 
 				     string observable = "maxCharge", 			   
 				     float  delayMin = 0,
@@ -38,8 +38,8 @@ void makeChargeDistributionPerModule(string file0,
 
   // open the file and prepare the cluster tree
   cout<<"########### fitChargeDistribution analysis ##############"<<endl;
-  std::unique_ptr<TFile> _file0 (TFile::Open(file0.c_str()));
-  std::unique_ptr<TTree> clusters   ((TTree*)_file0->FindObjectAny("clusters"));
+  std::unique_ptr<TChain> clusters (new TChain("clusters","clusters"));
+  clusters->Add((inputDIR+"/*root").c_str());
   
   // apply common preselection cuts on events, track and cluster quantities
   // make a index as a funcion of det id
