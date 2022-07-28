@@ -156,3 +156,13 @@ root -l;
 .L delayCorrectionPerModule.C;
 delayCorrectionPerModule(<file name containing the delay tree tree>, <output directory>, <outout file name containing corrections>, <saveFits: save canvas for % reductionFactor modules showing charge vs delay>, <delayCutForPlotting: max delay in order to display large correction modules on the trackermap>, <observable>);
 ```
+
+### Upload to P5 database:
+
+* Log into a p5 srv machine as trackerpro, execute ``getConfdb CONFDB_ONLINE``, copy there the text file containing the delay-corrections produced by the previous step, called ``delayCorrection.txt``, and run the following code for the upload as follows:
+```sh
+cd /opt/cmssw/shifter/erik/AccessDb/Raffaele;
+bash compile.sh
+python3 createSingleRandomStep.py
+``` 
+* Before running, edit the ``createSingleRandomStep.py`` in order to give to him, as input, the right text file containg the delays to be applied along with the name of the output summary xml files produced in order to show the values of coarse and fine delays to be applied on the PLL and FED channel registers. 

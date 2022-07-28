@@ -76,6 +76,8 @@ void  delayCorrectionPerModule(string fileName, string outputDIR, string outputN
   std::map<unsigned int,float> rejectedMap;
   std::map<unsigned int,float> rawDelayMap;
   std::map<unsigned int,float> delayMap;
+  std::map<unsigned int,float> rawDelayAllMap;
+  std::map<unsigned int,float> delayAllMap;
   std::map<unsigned int,std::string> largeDelayCoordinatesMap;
   std::map<unsigned int,std::string> rejectedCoordinatesMap;
   std::vector<unsigned int> detIdMap;
@@ -111,6 +113,8 @@ void  delayCorrectionPerModule(string fileName, string outputDIR, string outputN
     significanceRejectedMap[Detid] = 0;
     significanceRejectedMap[Detid] = 0;
     sigmaRejectedMap[Detid] = 0;
+    rawDelayAllMap[Detid] = 0;
+    delayAllMap[Detid]    = 0;
     
     if(*notFound_i){
       notFoundMap[Detid] = 1;
@@ -153,44 +157,48 @@ void  delayCorrectionPerModule(string fileName, string outputDIR, string outputN
       sigmaRejectedMap[Detid] = 1;
       continue;
     }
-    
-    rawDelayMap[Detid] = *delayCorr_i;
-    delayMap[Detid]    = delayCorr;
+    else{
 
-    // save the coordinates
-    if(fabs(*delayCorr_i) > delayCutForPlotting)
-      largeDelayCoordinatesMap[Detid] = to_string(*fedId_i)+" "+to_string(*fedCh_i)+" "+to_string(*fecRing_i)+" "+to_string(*ccuAdd_i)+" "+to_string(*ccuChan_i);
+      rawDelayMap[Detid] = *delayCorr_i;
+      delayMap[Detid]    = delayCorr;
+      rawDelayAllMap[Detid] = *delayCorr_i;
+      delayAllMap[Detid]    = delayCorr;
+      
+      // save the coordinates
+      if(fabs(*delayCorr_i) > delayCutForPlotting)
+	largeDelayCoordinatesMap[Detid] = to_string(*fedId_i)+" "+to_string(*fedCh_i)+" "+to_string(*fecRing_i)+" "+to_string(*ccuAdd_i)+" "+to_string(*ccuChan_i);
     
-    // save good fits
-    if(saveFits and ientry % reductionFactor == 0){
-      fitfunc.SetParameter(0,*measuredMeanAmplitude_i);
-      fitfunc.SetParameter(1,*measuredDelay_i);
-      fitfunc.SetParameter(2,*measuredSigma_i);
-      profile.Reset();
-      for(int iBin = 1; iBin < profile.GetNbinsX(); iBin++){
-	if(amplitude->at(iBin) == 0) continue;
-	profile.SetBinContent(iBin,amplitude->at(iBin));
-	profile.SetBinError(iBin,amplitudeUnc->at(iBin));
-      }
-      profile.GetXaxis()->SetTitle("delay [ns]");
-      if(TString(observable).Contains("maxCharge"))
-	profile.GetXaxis()->SetTitle("Leading strip charge (ADC)");
-      else if(observable == "clCorrectedSignalOverNoise")
-	profile.GetXaxis()->SetTitle("Cluster S/N");
+      // save good fits
+      if(saveFits and ientry % reductionFactor == 0){
+	fitfunc.SetParameter(0,*measuredMeanAmplitude_i);
+	fitfunc.SetParameter(1,*measuredDelay_i);
+	fitfunc.SetParameter(2,*measuredSigma_i);
+	profile.Reset();
+	for(int iBin = 1; iBin < profile.GetNbinsX(); iBin++){
+	  if(amplitude->at(iBin) == 0) continue;
+	  profile.SetBinContent(iBin,amplitude->at(iBin));
+	  profile.SetBinError(iBin,amplitudeUnc->at(iBin));
+	}
+	profile.GetXaxis()->SetTitle("delay [ns]");
+	if(TString(observable).Contains("maxCharge"))
+	  profile.GetXaxis()->SetTitle("Leading strip charge (ADC)");
+	else if(observable == "clCorrectedSignalOverNoise")
+	  profile.GetXaxis()->SetTitle("Cluster S/N");
       else if(observable == "clCorrectedCharge")
 	profile.GetXaxis()->SetTitle("Cluster charge (ADC)");
-      profile.SetMarkerColor(kBlack);
-      profile.SetMarkerSize(1);
-      profile.SetMarkerStyle(20);
-      profile.Draw("PE");
-      fitfunc.SetLineColor(kRed);
-      fitfunc.SetLineWidth(2);	  
-      fitfunc.Draw("Lsame");
-      profile.GetYaxis()->SetRangeUser(fitfunc.GetMinimum(limits.front(),limits.back())*0.75,fitfunc.GetMaximum(limits.front(),limits.back())*1.25);
-      CMS_lumi(&canvas,"");
-      
-      canvas.SaveAs((outputDIR+"/plot_detid_"+to_string(Detid)+".png").c_str(),"png");
-      canvas.SaveAs((outputDIR+"/plot_detid_"+to_string(Detid)+".pdf").c_str(),"pdf");
+	profile.SetMarkerColor(kBlack);
+	profile.SetMarkerSize(1);
+	profile.SetMarkerStyle(20);
+	profile.Draw("PE");
+	fitfunc.SetLineColor(kRed);
+	fitfunc.SetLineWidth(2);	  
+	fitfunc.Draw("Lsame");
+	profile.GetYaxis()->SetRangeUser(fitfunc.GetMinimum(limits.front(),limits.back())*0.75,fitfunc.GetMaximum(limits.front(),limits.back())*1.25);
+	CMS_lumi(&canvas,"");
+	
+	canvas.SaveAs((outputDIR+"/plot_detid_"+to_string(Detid)+".png").c_str(),"png");
+	canvas.SaveAs((outputDIR+"/plot_detid_"+to_string(Detid)+".pdf").c_str(),"pdf");
+      }
     }
   }
 
@@ -216,6 +224,18 @@ void  delayCorrectionPerModule(string fileName, string outputDIR, string outputN
     delayFile << imap.first << "   "<<imap.second<<"\n";
   }
   delayFile.close();
+
+  ofstream rawDelayAllFile ((outputDIR+"/rawDelayCorrectionAll.txt").c_str());
+  for(auto imap : rawDelayAllMap){
+    rawDelayAllFile << imap.first << "   "<<imap.second<<"\n";
+  }
+  rawDelayAllFile.close();
+
+  ofstream delayAllFile ((outputDIR+"/delayCorrectionAll.txt").c_str());
+  for(auto imap : delayAllMap){
+    delayAllFile << imap.first << "   "<<imap.second<<"\n";
+  }
+  delayAllFile.close();
 
   ofstream largeDelayChannel((outputDIR+"/largeDelayChannel.txt").c_str());
   for(auto imap : largeDelayCoordinatesMap)
