@@ -162,7 +162,11 @@ delayCorrectionPerModule(<file name containing the delay tree tree>, <output dir
 * Log into a p5 srv machine as trackerpro, execute ``getConfdb CONFDB_ONLINE``, copy there the text file containing the delay-corrections produced by the previous step, called ``delayCorrection.txt``, and run the following code for the upload as follows:
 ```sh
 cd /opt/cmssw/shifter/erik/AccessDb/Raffaele;
-bash compile.sh
+unset LD_LIBRARY_PATH
+cd /opt/cmssw/Stable/current/
+eval `scramv1 runtime -sh` ;
+cd -;
+sh compile.sh
 python3 createSingleRandomStep.py
 ``` 
 * Before running, edit the ``createSingleRandomStep.py`` in order to give to him, as input, the right text file containg the delays to be applied along with the name of the output summary xml files produced in order to show the values of coarse and fine delays to be applied on the PLL and FED channel registers. 

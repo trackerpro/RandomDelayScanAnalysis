@@ -1,9 +1,4 @@
 #!/bin/sh
-unset LD_LIBRARY_PATH
-cd /opt/cmssw/Stable/current/
-eval `scramv1 runtime -sh` ;
-cd -;
-
 export CMSSW_TOOLS=$CMSSW_RELEASE_BASE/config/toolbox/$SCRAM_ARCH/tools/selected
 echo $CMSSW_TOOLS
 export TKONLINESW_BASE=$(cat $CMSSW_TOOLS/tkonlinesw.xml | grep name=\"TKONLINESW_BASE\" | grep default | sed 's/\" default=\"/=/g' | sed 's/<environment name=\"//g' | sed 's/\"\/>//g' | sed 's/TKONLINESW_BASE=//g' | tr -d " ")

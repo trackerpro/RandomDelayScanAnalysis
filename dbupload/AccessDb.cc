@@ -213,9 +213,8 @@ void AccessDb::DelayModule(unsigned int dcuid, float delay,std::ofstream & outfi
 	float feddelay=cur_coarsedelay*25.-cur_finedelay;
 	float newdelay=feddelay-delay; // Subtract the delay on FED channel 
 	//std::cout<<"\t### FED "<<vCon_[i]->getFedId()<<":"<<vCon_[i]->getFedChannel()<<" "<<cur_finedelay<<" "<<cur_coarsedelay<<" "<<feddelay<<" "<<newdelay<<std::endl;
-	
-	int coarse =int(newdelay/25.)+1;
-	int fine = int(coarse*25 -newdelay);
+       	int coarse = int(newdelay/25.)+1;
+	int fine   = rint(coarse*25 -newdelay);
 	if (fine ==25){ fine = 0; coarse-=1; }
 	//std::cout<<" \t### "<<newdelay<<" "<<coarse*25.-fine<<" "<<coarse<<"/"<<fine<<std::endl;
 	outfile<<"\t <FedChannel id=\""<<vCon_[i]->getFedId()<<"\" channel=\""<<vCon_[i]->getFedChannel()<<"\" ofine=\""<<cur_finedelay<<"\" fine=\""<<fine<<"\" ocoarse=\""<<cur_coarsedelay<<"\" coarse=\""<<coarse<<"\" odelay=\""<<feddelay<<"\" delay=\""<<coarse*25.-fine<<"\" dif=\""<<std::fixed << std::setprecision(2) <<coarse*25.-fine - feddelay<<"\" />"<< std::endl;
