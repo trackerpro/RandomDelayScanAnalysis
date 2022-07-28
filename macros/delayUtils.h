@@ -17,15 +17,20 @@ TLegend*  legend;
 
 /// define limit and binning for the different observables
 void setLimitsAndBinning(const string & observable, float & xMin, float & xMax, int & nBin){
-  if(observable == "maxCharge"){
-    xMin = 10;
-    xMax = 254;
-    nBin = 40;
+  if(TString(observable).Contains("maxCharge")){
+    xMin = 0;
+    xMax = 250;
+    nBin = 125;
   }
-  else if(observable == "clSignalOverNoise" or observable == "clCorrectedSignalOverNoise"){
-    xMin = 5;
-    xMax = 70;
-    nBin = 35;
+  else if(observable == "clCorrectedSignalOverNoise"){
+    xMin = 0;
+    xMax = 60;
+    nBin = 120;
+  }
+  else if(observable == "clCorrectedCharge"){
+    xMin = 0;
+    xMax = 400;
+    nBin = 200;
   }
   else if(observable == "delay"){
     xMin = -10*1.04;
@@ -33,18 +38,17 @@ void setLimitsAndBinning(const string & observable, float & xMin, float & xMax, 
     nBin = 20;
   }
   else{
-    xMin = 20;
-    xMax = 250;
-    nBin = 150;
+    xMin = 0;
+    xMax = 200;
+    nBin = 100;
   } 
-
   return;
 }
 
 void setLimitsAndBinning(const string & observable, vector<double> & limits){
 
   if(observable == "delay")
-    limits = {-10.9,-9.9,-8.8,-7.8,-6.7,-5.7,-4.7,-3.6,-2.6,-1.5,-0.5,0.5,1.5,2.6,3.6,4.7,5.7,6.7,7.8,8.8,9.9,10.9};
+    limits = {-11.9,-10.9,-9.9,-8.8,-7.8,-6.7,-5.7,-4.7,-3.6,-2.6,-1.5,-0.5,0.5,1.5,2.6,3.6,4.7,5.7,6.7,7.8,8.8,9.9,10.9,11.9};
   
   return;
 }
@@ -156,7 +160,7 @@ TFitResultPtr fitProfile(TProfile* prof, bool gaus = false, string options = "",
 TFitResultPtr fitHistogram(TH1F* histo, bool gaus = false, string options = "", bool verbosity = false){
   TF1* pulse;
   if(gaus) { // gaussina fit                                                                                                                                                   
-    pulse = new TF1(Form("Gaus_%s",histo->GetName()),"gaus(0)",-10.5,10.5);
+    pulse = new TF1(Form("Gaus_%s",histo->GetName()),"gaus(0)",-11.5,11.5);
     pulse->SetParameters(50,0,12);
   } else {// different fit for the histo
     pulse = TkPulseShape::GetDeconvFitter();
@@ -177,7 +181,7 @@ TFitResultPtr fitHistogram(TH1F* histo, bool gaus = false, string options = "", 
 }
 
 // prepare a canvas for the final plot
-TCanvas* prepareCanvas(const string & name = "",const string & observable = "maxCharge"){
+TCanvas* prepareCanvas(const string & name = "",const string & observable = "maxChargeCorrected"){
 
   TCanvas*c  = new TCanvas(name.c_str(),name.c_str(),600,625);
   c->cd();
@@ -194,12 +198,12 @@ TCanvas* prepareCanvas(const string & name = "",const string & observable = "max
     frame->GetYaxis()->SetRangeUser(yMin,yMax);
   }
 
-  if(observable == "clSignalOverNoise")
+  if (observable == "clCorrectedSignalOverNoise")
     frame->GetYaxis()->SetTitle("S/N");
-  else if (observable == "clCorrectedSignalOverNoise")
-    frame->GetYaxis()->SetTitle("corrected S/N");
+  else if (observable == "clCorrectedCharge")
+    frame->GetYaxis()->SetTitle("Cluster Charge (ADC)");
   else
-    frame->GetYaxis()->SetTitle("corrected signal (ADC)");
+    frame->GetYaxis()->SetTitle("Leading strip charge (ADC)");
   frame->GetXaxis()->SetTitle("delay (ns)");
   frame->GetXaxis()->SetTitleOffset(1.1);
   frame->GetYaxis()->SetTitleOffset(1.2);
@@ -586,4 +590,95 @@ Double_t langaufun(Double_t *x, Double_t *par) {
   }
 
   return (par[2] * step * sum * invsq2pi / par[3]);
+}
+
+class RooDoubleCB : public RooAbsPdf {
+ public:
+  RooDoubleCB();
+  RooDoubleCB(const char *name,
+              const char *title,
+              RooAbsReal& _x,
+              RooAbsReal& _mean,
+              RooAbsReal& _width,
+              RooAbsReal& _alpha1,
+              RooAbsReal& _n1,
+              RooAbsReal& _alpha2,
+              RooAbsReal& _n2
+              );
+  RooDoubleCB(const RooDoubleCB& other,
+              const char* name=0) ;
+  virtual TObject* clone(const char* newname) const {
+    return new RooDoubleCB(*this,newname);
+  }
+  inline virtual ~RooDoubleCB() { }
+
+ protected:
+  RooRealProxy x ;
+  RooRealProxy mean;
+  RooRealProxy width;
+  RooRealProxy alpha1;
+  RooRealProxy n1;
+  RooRealProxy alpha2;
+  RooRealProxy n2;
+
+  Double_t evaluate() const ;
+
+ private:
+
+  ClassDef(RooDoubleCB,1)
+    
+};
+
+
+ClassImp(RooDoubleCB)
+
+RooDoubleCB::RooDoubleCB(){}
+
+RooDoubleCB::RooDoubleCB(const char *name, const char *title,
+                         RooAbsReal& _x,
+                         RooAbsReal& _mean,
+                         RooAbsReal& _width,
+                         RooAbsReal& _alpha1,
+                         RooAbsReal& _n1,
+                         RooAbsReal& _alpha2,
+                         RooAbsReal& _n2
+                         ) :
+RooAbsPdf(name,title),
+  x("x","x",this,_x),
+  mean("mean","mean",this,_mean),
+  width("width","width",this,_width),
+  alpha1("alpha1","alpha1",this,_alpha1),
+  n1("n1","n1",this,_n1),
+  alpha2("alpha2","alpha2",this,_alpha2),
+  n2("n2","n2",this,_n2){}
+
+RooDoubleCB::RooDoubleCB(const RooDoubleCB& other, const char* name) :
+RooAbsPdf(other,name),
+  x("x",this,other.x),
+  mean("mean",this,other.mean),
+  width("width",this,other.width),
+  alpha1("alpha1",this,other.alpha1),
+  n1("n1",this,other.n1),
+  alpha2("alpha2",this,other.alpha2),
+  n2("n2",this,other.n2){ }
+
+
+double RooDoubleCB::evaluate() const
+{
+  double A1 = pow(n1/fabs(alpha1),n1)*exp(-alpha1*alpha1/2);
+  double A2 = pow(n2/fabs(alpha2),n2)*exp(-alpha2*alpha2/2);
+  double B1 = n1/fabs(alpha1)-fabs(alpha1);
+  double B2 = n2/fabs(alpha2)-fabs(alpha2);
+
+  if((x-mean)/width>-alpha1 && (x-mean)/width<alpha2){
+    return exp(-(x-mean)*(x-mean)/(2*width*width));
+  }else if((x-mean)/width<-alpha1){
+    return A1*pow(B1-(x-mean)/width,-n1);
+  }else if((x-mean)/width>alpha2){
+    return A2*pow(B2+(x-mean)/width,-n2);
+  }else{
+    cout << "ERROR evaluating range..." << endl;
+    return 99;
+  }
+
 }

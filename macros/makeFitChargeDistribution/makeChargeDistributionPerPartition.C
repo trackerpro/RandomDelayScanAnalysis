@@ -127,12 +127,8 @@ void paritionPlots(TChain* tree,
     tree->GetEntry(iEvent);
     
     int subdetid  = int((detid-0x10000000)/0x2000000);
-    float    R           = sqrt(clglobalX*clglobalX+clglobalY*clglobalY+clglobalZ*clglobalZ);
-    float    value       = 0;
-    if(observable == "maxCharge")
-      value = obs*(clCorrectedSignalOverNoise)/(clSignalOverNoise);
-    else
-      value = obs;
+    float R           = sqrt(clglobalX*clglobalX+clglobalY*clglobalY+clglobalZ*clglobalZ);
+    float value       = obs;
     
     if(subdetid == 3){ // TIB
       if(TIBMaxCharge[round(delay*10/10)] == 0 or TIBMaxCharge[round(delay*10/10)] == NULL)
@@ -320,7 +316,7 @@ void plotDistributions(TCanvas* canvas, const string & outputDIR){
 
 /// main function that run the analysis --> produce one plot per delay value showing the 4 partitions on the same canvas
 void makeChargeDistributionPerPartition(string inputDIR,  // inputfile
-					string observable   = "maxCharge",   // observable to be considered: maxCharge, S/N ..etc
+					string observable   = "maxChargeCorrected",   // observable to be considered: maxCharge, S/N ..etc
 					string outputDIR    = "distributionMaxChargePerPartition" // output directory name
 					){
   gStyle->SetOptStat(0);

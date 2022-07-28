@@ -138,13 +138,8 @@ void LayerPlots(TChain* tree,
     unsigned int TIDlayer    = int((detid%33554432)/0x800)%4;
     unsigned int TECPlayer   = int((detid%33554432)/0x4000)-32;
     unsigned int TECMlayer   = int((detid%33554432)/0x4000)-16;
-    float    R           = sqrt(clglobalX*clglobalX+clglobalY*clglobalY+clglobalZ*clglobalZ);
-
-    float value = 0;
-    if(observable == "maxCharge")
-      value = obs*(clCorrectedSignalOverNoise)/(clSignalOverNoise);
-    else 
-      value = obs;
+    float R  = sqrt(clglobalX*clglobalX+clglobalY*clglobalY+clglobalZ*clglobalZ);
+    float value = obs;
 
     // fill the maps
     if(subdetid == 3){
@@ -462,7 +457,7 @@ void plotDistributions(TCanvas* canvas, const string & outputDIR){
 
 /// main function that run the analysis
 void makeChargeDistributionPerLayer(string inputDIR,  // inputfile
-				    string observable   = "maxCharge",   // observable to be considered: maxCharge, S/N ..etc
+				    string observable   = "maxChargeCorrected",   // observable to be considered: maxCharge, S/N ..etc
 				    string outputDIR    = "prompt" // output directory name
 				    ){
   

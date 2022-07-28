@@ -22,7 +22,7 @@ static int  reductionFactor = 1;
 
 void makeChargeDistributionPerModule(string inputDIR, 
 				     string outputDirectory, 
-				     string observable = "maxCharge", 			   
+				     string observable = "maxChargeCorrected", 			   
 				     float  delayMin = 0,
 				     float  delayMax = 10,
 				     bool   applyCorrection = true,
@@ -155,10 +155,12 @@ void makeChargeDistributionPerModule(string inputDIR,
     TH1* frame = (TH1*) ihist.second->Clone(Form("frame_%s",ihist.second->GetName()));
     frame->Reset();
     frame->GetYaxis()->SetTitle("a.u.");
-    if(observable == "maxCharge")
+    if(TString(observable).Contains("maxCharge"))
       frame->GetXaxis()->SetTitle("Leading strip charge (ADC)");
-    else
-      frame->GetXaxis()->SetTitle("Signal over Noise");
+    else if(observable == "clCorrectedSignalOverNoise")      
+      frame->GetXaxis()->SetTitle("Cluster S/N");
+    else if(observable == "clCorrectedCharge")      
+      frame->GetXaxis()->SetTitle("Cluster charge (ADC)");
 
     frame->GetXaxis()->SetTitleOffset(1.1);
     frame->GetYaxis()->SetTitleOffset(1.1);

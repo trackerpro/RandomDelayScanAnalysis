@@ -87,14 +87,15 @@ void  makeCheckDistributionFED(string inputFileName,
       fedHistogramMap[*Detid_i]->SetBinError(iBin,amplitudeUnc->at(iBin));
     }
     fedHistogramMap[*Detid_i]->GetXaxis()->SetTitle("delay [ns]");
-    if(observable == "maxCharge")
-      fedHistogramMap[*Detid_i]->GetYaxis()->SetTitle("corrected signal (ADC)");
-    else if(observable == "")
-      fedHistogramMap[*Detid_i]->GetYaxis()->SetTitle("corrected S/N");
+    if(TString(observable).Contains("maxCharge"))
+      fedHistogramMap[*Detid_i]->GetYaxis()->SetTitle("Leading strip charge (ADC)");
+    else if(observable == "clCorrectedSignalOverNoise")
+      fedHistogramMap[*Detid_i]->GetYaxis()->SetTitle("Cluster S/N");
+    else if(observable == "clCorrectedCharge")
+      fedHistogramMap[*Detid_i]->GetYaxis()->SetTitle("Cluster charge (ADC)");
     fedHistogramMap[*Detid_i]->SetMarkerColor(kBlack);
     fedHistogramMap[*Detid_i]->SetMarkerSize(1);
     fedHistogramMap[*Detid_i]->SetMarkerStyle(20);
-
     fedHistogramMap[*Detid_i]->GetYaxis()->SetRangeUser(fedFunctionMap[*Detid_i]->GetMinimum(limits.front(),limits.back())*0.75,fedFunctionMap[*Detid_i]->GetMaximum(limits.front(),limits.back())*1.25);
     fedHistogramMap[*Detid_i]->Draw("PE");
     fedFunctionMap[*Detid_i]->Draw("Lsame");

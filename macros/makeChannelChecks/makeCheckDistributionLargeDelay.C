@@ -92,10 +92,12 @@ void  makeCheckDistributionLargeDelay(string inputFileName,
       largeDelayHistogramMap[*Detid_i]->SetBinError(iBin,amplitudeUnc->at(iBin));
     }
     largeDelayHistogramMap[*Detid_i]->GetXaxis()->SetTitle("delay [ns]");
-    if(observable == "maxCharge")
-      largeDelayHistogramMap[*Detid_i]->GetYaxis()->SetTitle("corrected signal (ADC)");
-    else if(observable == "")
-      largeDelayHistogramMap[*Detid_i]->GetYaxis()->SetTitle("corrected S/N");
+    if(TString(observable).Contains("maxCharge"))
+      largeDelayHistogramMap[*Detid_i]->GetYaxis()->SetTitle("Leading strip charge (ADC)");
+    else if(observable == "clCorrectedSignalOverNoise")
+      largeDelayHistogramMap[*Detid_i]->GetYaxis()->SetTitle("Cluster S/N");
+    else if(observable == "clCorrectedCharge")
+      largeDelayHistogramMap[*Detid_i]->GetYaxis()->SetTitle("Cluster charge (ADC)");
     largeDelayHistogramMap[*Detid_i]->SetMarkerColor(kBlack);
     largeDelayHistogramMap[*Detid_i]->SetMarkerSize(1);
     largeDelayHistogramMap[*Detid_i]->SetMarkerStyle(20);

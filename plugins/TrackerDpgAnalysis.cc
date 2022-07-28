@@ -4,7 +4,6 @@
 // Class:      TrackerDpgAnalysis
 //
 /**\class TrackerDpgAnalysis TrackerDpgAnalysis.cc DPGAnalysis/SiStripTools/plugins/TrackerDpgAnalysis.cc
-
  Description: analysis of the clusters and digis in the tracker
 
  Implementation:
@@ -189,7 +188,7 @@ private:
   unsigned int globaltrackid_, trackid_, ntracks_, ntrajs_;
   float globalX_, globalY_, globalZ_;
   float measX_, measY_, errorX_, errorY_;
-  float angle_, maxCharge_;
+  float angle_, maxCharge_, maxChargeCorrected_;
   float clCorrectedCharge_, clCorrectedSignalOverNoise_;
   float clNormalizedCharge_, clNormalizedNoise_, clSignalOverNoise_;
   float clBareNoise_, clBareCharge_;
@@ -512,6 +511,7 @@ TrackerDpgAnalysis::analyze(const edm::Event& iEvent, const edm::EventSetup& iSe
       // signal and noise with gain corrections and angle corrections
       clCorrectedCharge_ = clNormalizedCharge_ * fabs(cos(angle_)); // corrected for track angle
       clCorrectedSignalOverNoise_ = clSignalOverNoise_ * fabs(cos(angle_)); // corrected for track angle
+      maxChargeCorrected_ = maxCharge_*fabs(cos(angle_));
       // signal and noise without gain corrections
       clBareNoise_  = siStripClusterInfo_.noise();
       clBareCharge_ = clSignalOverNoise_*clBareNoise_;
@@ -715,6 +715,7 @@ void TrackerDpgAnalysis::beginJob(){
   clusters_->Branch("angle",&angle_,"angle/F");
   clusters_->Branch("thickness",&thickness_,"thickness/F");
   clusters_->Branch("maxCharge",&maxCharge_,"maxCharge/F");
+  clusters_->Branch("maxChargeCorrected",&maxChargeCorrected_,"maxChargeCorrected/F");
   clusters_->Branch("clNormalizedCharge",&clNormalizedCharge_,"clNormalizedCharge/F");
   clusters_->Branch("clNormalizedNoise",&clNormalizedNoise_,"clNormalizedNoise/F");
   clusters_->Branch("clSignalOverNoise",&clSignalOverNoise_,"clSignalOverNoise/F");

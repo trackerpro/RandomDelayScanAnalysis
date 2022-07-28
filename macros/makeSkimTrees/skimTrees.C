@@ -11,7 +11,7 @@ void skimTrees(const string & inputFileName,
 	       const string & eventSelection   = "delayrange != 0",   
 	       const string & vertexSelection  = "isValid && !isFake && nTracks>3",   
 	       const string & trackSelection   = "pt > 1 && abs(eta) < 2.75 && pterr/pt < 0.4 && chi2/ndof < 3 && losthitsPixels <= 1 && lostHits <= 2 && abs(dxy) < 50 && abs(dz) < 50",
-	       const string & clusterSelection = "onTrack && angle > 0 && maxCharge < 254"
+	       const string & clusterSelection = "onTrack && angle > 0 && maxCharge < 254 && clWidth <= 4"
 	       ) {
 
   ROOT::EnableImplicitMT(nthreads);

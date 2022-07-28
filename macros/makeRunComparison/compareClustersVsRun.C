@@ -84,7 +84,7 @@ void createHistograms(const size_t & npos){
   float xMin_maxCharge, xMax_maxCharge, xMin_SoN, xMax_SoN;
   int nBin_maxCharge, nBin_SoN;
   
-  setLimitsAndBinning("maxCharge",xMin_maxCharge,xMax_maxCharge,nBin_maxCharge);
+  setLimitsAndBinning("maxChargeCorrected",xMin_maxCharge,xMax_maxCharge,nBin_maxCharge);
   setLimitsAndBinning("clCorrectedSignalOverNoise",xMin_SoN,xMax_SoN,nBin_SoN);
     
   for(int ihist = 0; ihist < int(npos); ihist++){
@@ -285,7 +285,7 @@ void fitSignalShape(const vector<TH1F*> histo, const vector<float> & runList, TF
    
     // create the function                                                                                                                                                   
     TF1 *    fitfunc = new TF1(Form("fit_%s",ihist->GetName()),langaufun,ihist->GetBinLowEdge(1),ihist->GetBinLowEdge(ihist->GetNbinsX()+1),4);
-    if(observable == "maxCharge"){
+    if(observable == "maxChargeCorrected"){
       if(TString(ihist->GetName()).Contains("TIB"))
 	fitfunc->SetRange(ihist->GetBinCenter(ihist->GetMaximumBin())-1.5*ihist->GetRMS(),ihist->GetBinCenter(ihist->GetMaximumBin())+ihist->GetRMS()*2.5);
       if(TString(ihist->GetName()).Contains("TID"))
@@ -418,19 +418,19 @@ void compareClustersVsRun(string inputDIR, vector<float> runList, string outputD
 
     // set branches for the cluster, readoutmap and no corrections trees                                                                                                        
     uint32_t detid, runid;
-    float    clCorrectedSignalOverNoise, clSignalOverNoise, maxCharge, clglobalZ;
+    float    clCorrectedSignalOverNoise, clSignalOverNoise, maxChargeCorrected, clglobalZ;
     clusters.at(iTree)->SetBranchStatus("*",kFALSE);
     clusters.at(iTree)->SetBranchStatus("detid",kTRUE);
     clusters.at(iTree)->SetBranchStatus("clCorrectedSignalOverNoise",kTRUE);
     clusters.at(iTree)->SetBranchStatus("clSignalOverNoise",kTRUE);
-    clusters.at(iTree)->SetBranchStatus("maxCharge",kTRUE);
+    clusters.at(iTree)->SetBranchStatus("maxChargeCorrected",kTRUE);
     clusters.at(iTree)->SetBranchStatus("runid",kTRUE);
     clusters.at(iTree)->SetBranchStatus("clglobalZ",kTRUE);
     clusters.at(iTree)->SetBranchAddress("detid",&detid);
     clusters.at(iTree)->SetBranchAddress("runid",&runid);
     clusters.at(iTree)->SetBranchAddress("clCorrectedSignalOverNoise",&clCorrectedSignalOverNoise);
     clusters.at(iTree)->SetBranchAddress("clSignalOverNoise",&clSignalOverNoise);
-    clusters.at(iTree)->SetBranchAddress("maxCharge",&maxCharge);
+    clusters.at(iTree)->SetBranchAddress("maxChargeCorrected",&maxChargeCorrected);
     clusters.at(iTree)->SetBranchAddress("clglobalZ",&clglobalZ);
 
     for(long int iEvent = 0; iEvent < clusters.at(iTree)->GetEntries()/reductionFactor; iEvent++){
@@ -451,135 +451,135 @@ void compareClustersVsRun(string inputDIR, vector<float> runList, string outputD
       
       if(subdetid == 3){ // TIB
 	if(barrellayer == 1){
-	  histo_maxCharge_TIB_L1.at(pos)->Fill(maxCharge*clCorrectedSignalOverNoise/clSignalOverNoise);
+	  histo_maxCharge_TIB_L1.at(pos)->Fill(maxChargeCorrected);
 	  histo_SoN_TIB_L1.at(pos)->Fill(clCorrectedSignalOverNoise);
 	}
 	else if(barrellayer == 2){
-	  histo_maxCharge_TIB_L2.at(pos)->Fill(maxCharge*clCorrectedSignalOverNoise/clSignalOverNoise);
+	  histo_maxCharge_TIB_L2.at(pos)->Fill(maxChargeCorrected);
 	  histo_SoN_TIB_L2.at(pos)->Fill(clCorrectedSignalOverNoise);
 	}
 	else if(barrellayer == 3){
-	  histo_maxCharge_TIB_L3.at(pos)->Fill(maxCharge*clCorrectedSignalOverNoise/clSignalOverNoise);
+	  histo_maxCharge_TIB_L3.at(pos)->Fill(maxChargeCorrected);
 	  histo_SoN_TIB_L3.at(pos)->Fill(clCorrectedSignalOverNoise);
 	}
 	else if(barrellayer == 4){
-	  histo_maxCharge_TIB_L4.at(pos)->Fill(maxCharge*clCorrectedSignalOverNoise/clSignalOverNoise);
+	  histo_maxCharge_TIB_L4.at(pos)->Fill(maxChargeCorrected);
 	  histo_SoN_TIB_L4.at(pos)->Fill(clCorrectedSignalOverNoise);
 	}
       }
       else if(subdetid == 5){ // TOB
 	if(barrellayer == 1){
-	  histo_maxCharge_TOB_L1.at(pos)->Fill(maxCharge*clCorrectedSignalOverNoise/clSignalOverNoise);
+	  histo_maxCharge_TOB_L1.at(pos)->Fill(maxChargeCorrected);
 	  histo_SoN_TOB_L1.at(pos)->Fill(clCorrectedSignalOverNoise);
 	}
 	else if(barrellayer == 2){
-	  histo_maxCharge_TOB_L2.at(pos)->Fill(maxCharge*clCorrectedSignalOverNoise/clSignalOverNoise);
+	  histo_maxCharge_TOB_L2.at(pos)->Fill(maxChargeCorrected);
 	  histo_SoN_TOB_L2.at(pos)->Fill(clCorrectedSignalOverNoise);
 	}
 	else if(barrellayer == 3){
-	  histo_maxCharge_TOB_L3.at(pos)->Fill(maxCharge*clCorrectedSignalOverNoise/clSignalOverNoise);
+	  histo_maxCharge_TOB_L3.at(pos)->Fill(maxChargeCorrected);
 	  histo_SoN_TOB_L3.at(pos)->Fill(clCorrectedSignalOverNoise);
 	}
 	else if(barrellayer == 4){
-	  histo_maxCharge_TOB_L4.at(pos)->Fill(maxCharge*clCorrectedSignalOverNoise/clSignalOverNoise);
+	  histo_maxCharge_TOB_L4.at(pos)->Fill(maxChargeCorrected);
 	  histo_SoN_TOB_L4.at(pos)->Fill(clCorrectedSignalOverNoise);
 	}
 	else if(barrellayer == 5){
-	  histo_maxCharge_TOB_L5.at(pos)->Fill(maxCharge*clCorrectedSignalOverNoise/clSignalOverNoise);
+	  histo_maxCharge_TOB_L5.at(pos)->Fill(maxChargeCorrected);
 	  histo_SoN_TOB_L5.at(pos)->Fill(clCorrectedSignalOverNoise);
 	}
 	else if(barrellayer == 6){
-	  histo_maxCharge_TOB_L6.at(pos)->Fill(maxCharge*clCorrectedSignalOverNoise/clSignalOverNoise);
+	  histo_maxCharge_TOB_L6.at(pos)->Fill(maxChargeCorrected);
 	  histo_SoN_TOB_L6.at(pos)->Fill(clCorrectedSignalOverNoise);
 	}
       }    
       else if(subdetid == 4){ // TID
 	if(TIDlayer == 1){
-	histo_maxCharge_TID_D1.at(pos)->Fill(maxCharge*clCorrectedSignalOverNoise/clSignalOverNoise);
+	histo_maxCharge_TID_D1.at(pos)->Fill(maxChargeCorrected);
 	histo_SoN_TID_D1.at(pos)->Fill(clCorrectedSignalOverNoise);	  
 	}
 	else if(TIDlayer == 2){
-	  histo_maxCharge_TID_D2.at(pos)->Fill(maxCharge*clCorrectedSignalOverNoise/clSignalOverNoise);
+	  histo_maxCharge_TID_D2.at(pos)->Fill(maxChargeCorrected);
 	  histo_SoN_TID_D2.at(pos)->Fill(clCorrectedSignalOverNoise);	  	  
 	}
 	else if(TIDlayer == 3){
-	  histo_maxCharge_TID_D3.at(pos)->Fill(maxCharge*clCorrectedSignalOverNoise/clSignalOverNoise);
+	  histo_maxCharge_TID_D3.at(pos)->Fill(maxChargeCorrected);
 	  histo_SoN_TID_D3.at(pos)->Fill(clCorrectedSignalOverNoise);	  	  
 	}	
       }
       else if(subdetid == 6){ // TEC
 	// TECP
 	if( TECPlayer == 1 and clglobalZ > 0){
-	  histo_maxCharge_TECP_D1.at(pos)->Fill(maxCharge*clCorrectedSignalOverNoise/clSignalOverNoise);
+	  histo_maxCharge_TECP_D1.at(pos)->Fill(maxChargeCorrected);
 	  histo_SoN_TECP_D1.at(pos)->Fill(clCorrectedSignalOverNoise);	  	  
 	}
 	else if( TECPlayer == 2 and clglobalZ > 0){
-	  histo_maxCharge_TECP_D2.at(pos)->Fill(maxCharge*clCorrectedSignalOverNoise/clSignalOverNoise);
+	  histo_maxCharge_TECP_D2.at(pos)->Fill(maxChargeCorrected);
 	  histo_SoN_TECP_D2.at(pos)->Fill(clCorrectedSignalOverNoise);	  	  
 	}
 	else if( TECPlayer == 3 and clglobalZ > 0){
-	  histo_maxCharge_TECP_D3.at(pos)->Fill(maxCharge*clCorrectedSignalOverNoise/clSignalOverNoise);
+	  histo_maxCharge_TECP_D3.at(pos)->Fill(maxChargeCorrected);
 	  histo_SoN_TECP_D3.at(pos)->Fill(clCorrectedSignalOverNoise);	  	  
 	}
 	else if( TECPlayer == 4 and clglobalZ > 0){
-	  histo_maxCharge_TECP_D4.at(pos)->Fill(maxCharge*clCorrectedSignalOverNoise/clSignalOverNoise);
+	  histo_maxCharge_TECP_D4.at(pos)->Fill(maxChargeCorrected);
 	  histo_SoN_TECP_D4.at(pos)->Fill(clCorrectedSignalOverNoise);	  	  
 	}
 	else if( TECPlayer == 5 and clglobalZ > 0){
-	  histo_maxCharge_TECP_D5.at(pos)->Fill(maxCharge*clCorrectedSignalOverNoise/clSignalOverNoise);
+	  histo_maxCharge_TECP_D5.at(pos)->Fill(maxChargeCorrected);
 	  histo_SoN_TECP_D5.at(pos)->Fill(clCorrectedSignalOverNoise);	  	  
 	}
 	else if( TECPlayer == 6 and clglobalZ > 0){
-	  histo_maxCharge_TECP_D6.at(pos)->Fill(maxCharge*clCorrectedSignalOverNoise/clSignalOverNoise);
+	  histo_maxCharge_TECP_D6.at(pos)->Fill(maxChargeCorrected);
 	  histo_SoN_TECP_D6.at(pos)->Fill(clCorrectedSignalOverNoise);	  	  
 	}
 	else if( TECPlayer == 7 and clglobalZ > 0){
-	  histo_maxCharge_TECP_D7.at(pos)->Fill(maxCharge*clCorrectedSignalOverNoise/clSignalOverNoise);
+	  histo_maxCharge_TECP_D7.at(pos)->Fill(maxChargeCorrected);
 	  histo_SoN_TECP_D7.at(pos)->Fill(clCorrectedSignalOverNoise);	  	  
 	}
 	else if( TECPlayer == 8 and clglobalZ > 0){
-	  histo_maxCharge_TECP_D8.at(pos)->Fill(maxCharge*clCorrectedSignalOverNoise/clSignalOverNoise);
+	  histo_maxCharge_TECP_D8.at(pos)->Fill(maxChargeCorrected);
 	  histo_SoN_TECP_D8.at(pos)->Fill(clCorrectedSignalOverNoise);	  	  
 	}
 	else if( TECPlayer == 9 and clglobalZ > 0){
-	  histo_maxCharge_TECP_D9.at(pos)->Fill(maxCharge*clCorrectedSignalOverNoise/clSignalOverNoise);
+	  histo_maxCharge_TECP_D9.at(pos)->Fill(maxChargeCorrected);
 	  histo_SoN_TECP_D9.at(pos)->Fill(clCorrectedSignalOverNoise);	  	  
 	}
 	// TECM 
 	if( TECMlayer == 1 and clglobalZ < 0){
-	  histo_maxCharge_TECM_D1.at(pos)->Fill(maxCharge*clCorrectedSignalOverNoise/clSignalOverNoise);
+	  histo_maxCharge_TECM_D1.at(pos)->Fill(maxChargeCorrected);
 	  histo_SoN_TECM_D1.at(pos)->Fill(clCorrectedSignalOverNoise);	  	  
 	}
 	else if( TECMlayer == 2 and clglobalZ < 0){
-	  histo_maxCharge_TECM_D2.at(pos)->Fill(maxCharge*clCorrectedSignalOverNoise/clSignalOverNoise);
+	  histo_maxCharge_TECM_D2.at(pos)->Fill(maxChargeCorrected);
 	  histo_SoN_TECM_D2.at(pos)->Fill(clCorrectedSignalOverNoise);	  	  
 	}
 	else if( TECMlayer == 3 and clglobalZ < 0){
-	  histo_maxCharge_TECM_D3.at(pos)->Fill(maxCharge*clCorrectedSignalOverNoise/clSignalOverNoise);
+	  histo_maxCharge_TECM_D3.at(pos)->Fill(maxChargeCorrected);
 	  histo_SoN_TECM_D3.at(pos)->Fill(clCorrectedSignalOverNoise);	  	  
 	}
 	else if( TECMlayer == 4 and clglobalZ < 0){
-	  histo_maxCharge_TECM_D4.at(pos)->Fill(maxCharge*clCorrectedSignalOverNoise/clSignalOverNoise);
+	  histo_maxCharge_TECM_D4.at(pos)->Fill(maxChargeCorrected);
 	  histo_SoN_TECM_D4.at(pos)->Fill(clCorrectedSignalOverNoise);	  	  
 	}
 	else if( TECMlayer == 5 and clglobalZ < 0){
-	  histo_maxCharge_TECM_D5.at(pos)->Fill(maxCharge*clCorrectedSignalOverNoise/clSignalOverNoise);
+	  histo_maxCharge_TECM_D5.at(pos)->Fill(maxChargeCorrected);
 	  histo_SoN_TECM_D5.at(pos)->Fill(clCorrectedSignalOverNoise);	  	  
 	}
 	else if( TECMlayer == 6 and clglobalZ < 0){
-	  histo_maxCharge_TECM_D6.at(pos)->Fill(maxCharge*clCorrectedSignalOverNoise/clSignalOverNoise);
+	  histo_maxCharge_TECM_D6.at(pos)->Fill(maxChargeCorrected);
 	  histo_SoN_TECM_D6.at(pos)->Fill(clCorrectedSignalOverNoise);	  	  
 	}
 	else if( TECMlayer == 7 and clglobalZ < 0){
-	  histo_maxCharge_TECM_D7.at(pos)->Fill(maxCharge*clCorrectedSignalOverNoise/clSignalOverNoise);
+	  histo_maxCharge_TECM_D7.at(pos)->Fill(maxChargeCorrected);
 	  histo_SoN_TECM_D7.at(pos)->Fill(clCorrectedSignalOverNoise);	  	  
 	}
 	else if( TECMlayer == 8 and clglobalZ < 0){
-	  histo_maxCharge_TECM_D8.at(pos)->Fill(maxCharge*clCorrectedSignalOverNoise/clSignalOverNoise);
+	  histo_maxCharge_TECM_D8.at(pos)->Fill(maxChargeCorrected);
 	  histo_SoN_TECM_D8.at(pos)->Fill(clCorrectedSignalOverNoise);	  	  
 	}
 	else if( TECMlayer == 9 and clglobalZ < 0){
-	  histo_maxCharge_TECM_D9.at(pos)->Fill(maxCharge*clCorrectedSignalOverNoise/clSignalOverNoise);
+	  histo_maxCharge_TECM_D9.at(pos)->Fill(maxChargeCorrected);
           histo_SoN_TECM_D9.at(pos)->Fill(clCorrectedSignalOverNoise);	  	  
 	}	
       }
@@ -594,41 +594,41 @@ void compareClustersVsRun(string inputDIR, vector<float> runList, string outputD
   canvas = new TCanvas("canvas","",600,625);
   
   ///// fitting part
-  fitSignalShape(histo_maxCharge_TIB_L1,runList,outputFile_maxCharge,"maxCharge");
-  fitSignalShape(histo_maxCharge_TIB_L2,runList,outputFile_maxCharge,"maxCharge");
-  fitSignalShape(histo_maxCharge_TIB_L3,runList,outputFile_maxCharge,"maxCharge");
-  fitSignalShape(histo_maxCharge_TIB_L4,runList,outputFile_maxCharge,"maxCharge");
+  fitSignalShape(histo_maxCharge_TIB_L1,runList,outputFile_maxCharge,"maxChargeCorrected");
+  fitSignalShape(histo_maxCharge_TIB_L2,runList,outputFile_maxCharge,"maxChargeCorrected");
+  fitSignalShape(histo_maxCharge_TIB_L3,runList,outputFile_maxCharge,"maxChargeCorrected");
+  fitSignalShape(histo_maxCharge_TIB_L4,runList,outputFile_maxCharge,"maxChargeCorrected");
     
-  fitSignalShape(histo_maxCharge_TOB_L1,runList,outputFile_maxCharge,"maxCharge");
-  fitSignalShape(histo_maxCharge_TOB_L2,runList,outputFile_maxCharge,"maxCharge");
-  fitSignalShape(histo_maxCharge_TOB_L3,runList,outputFile_maxCharge,"maxCharge");
-  fitSignalShape(histo_maxCharge_TOB_L4,runList,outputFile_maxCharge,"maxCharge");
-  fitSignalShape(histo_maxCharge_TOB_L5,runList,outputFile_maxCharge,"maxCharge");
-  fitSignalShape(histo_maxCharge_TOB_L6,runList,outputFile_maxCharge,"maxCharge");
+  fitSignalShape(histo_maxCharge_TOB_L1,runList,outputFile_maxCharge,"maxChargeCorrected");
+  fitSignalShape(histo_maxCharge_TOB_L2,runList,outputFile_maxCharge,"maxChargeCorrected");
+  fitSignalShape(histo_maxCharge_TOB_L3,runList,outputFile_maxCharge,"maxChargeCorrected");
+  fitSignalShape(histo_maxCharge_TOB_L4,runList,outputFile_maxCharge,"maxChargeCorrected");
+  fitSignalShape(histo_maxCharge_TOB_L5,runList,outputFile_maxCharge,"maxChargeCorrected");
+  fitSignalShape(histo_maxCharge_TOB_L6,runList,outputFile_maxCharge,"maxChargeCorrected");
   
-  fitSignalShape(histo_maxCharge_TID_D1,runList,outputFile_maxCharge,"maxCharge");
-  fitSignalShape(histo_maxCharge_TID_D2,runList,outputFile_maxCharge,"maxCharge");
-  fitSignalShape(histo_maxCharge_TID_D3,runList,outputFile_maxCharge,"maxCharge");
+  fitSignalShape(histo_maxCharge_TID_D1,runList,outputFile_maxCharge,"maxChargeCorrected");
+  fitSignalShape(histo_maxCharge_TID_D2,runList,outputFile_maxCharge,"maxChargeCorrected");
+  fitSignalShape(histo_maxCharge_TID_D3,runList,outputFile_maxCharge,"maxChargeCorrected");
   
-  fitSignalShape(histo_maxCharge_TECP_D1,runList,outputFile_maxCharge,"maxCharge");
-  fitSignalShape(histo_maxCharge_TECP_D2,runList,outputFile_maxCharge,"maxCharge");
-  fitSignalShape(histo_maxCharge_TECP_D3,runList,outputFile_maxCharge,"maxCharge");
-  fitSignalShape(histo_maxCharge_TECP_D4,runList,outputFile_maxCharge,"maxCharge");
-  fitSignalShape(histo_maxCharge_TECP_D5,runList,outputFile_maxCharge,"maxCharge");
-  fitSignalShape(histo_maxCharge_TECP_D6,runList,outputFile_maxCharge,"maxCharge");
-  fitSignalShape(histo_maxCharge_TECP_D7,runList,outputFile_maxCharge,"maxCharge");
-  fitSignalShape(histo_maxCharge_TECP_D8,runList,outputFile_maxCharge,"maxCharge");
-  fitSignalShape(histo_maxCharge_TECP_D9,runList,outputFile_maxCharge,"maxCharge");
+  fitSignalShape(histo_maxCharge_TECP_D1,runList,outputFile_maxCharge,"maxChargeCorrected");
+  fitSignalShape(histo_maxCharge_TECP_D2,runList,outputFile_maxCharge,"maxChargeCorrected");
+  fitSignalShape(histo_maxCharge_TECP_D3,runList,outputFile_maxCharge,"maxChargeCorrected");
+  fitSignalShape(histo_maxCharge_TECP_D4,runList,outputFile_maxCharge,"maxChargeCorrected");
+  fitSignalShape(histo_maxCharge_TECP_D5,runList,outputFile_maxCharge,"maxChargeCorrected");
+  fitSignalShape(histo_maxCharge_TECP_D6,runList,outputFile_maxCharge,"maxChargeCorrected");
+  fitSignalShape(histo_maxCharge_TECP_D7,runList,outputFile_maxCharge,"maxChargeCorrected");
+  fitSignalShape(histo_maxCharge_TECP_D8,runList,outputFile_maxCharge,"maxChargeCorrected");
+  fitSignalShape(histo_maxCharge_TECP_D9,runList,outputFile_maxCharge,"maxChargeCorrected");
   
-  fitSignalShape(histo_maxCharge_TECM_D1,runList,outputFile_maxCharge,"maxCharge");
-  fitSignalShape(histo_maxCharge_TECM_D2,runList,outputFile_maxCharge,"maxCharge");
-  fitSignalShape(histo_maxCharge_TECM_D3,runList,outputFile_maxCharge,"maxCharge");
-  fitSignalShape(histo_maxCharge_TECM_D4,runList,outputFile_maxCharge,"maxCharge");
-  fitSignalShape(histo_maxCharge_TECM_D5,runList,outputFile_maxCharge,"maxCharge");
-  fitSignalShape(histo_maxCharge_TECM_D6,runList,outputFile_maxCharge,"maxCharge");
-  fitSignalShape(histo_maxCharge_TECM_D7,runList,outputFile_maxCharge,"maxCharge");
-  fitSignalShape(histo_maxCharge_TECM_D8,runList,outputFile_maxCharge,"maxCharge");
-  fitSignalShape(histo_maxCharge_TECM_D9,runList,outputFile_maxCharge,"maxCharge");
+  fitSignalShape(histo_maxCharge_TECM_D1,runList,outputFile_maxCharge,"maxChargeCorrected");
+  fitSignalShape(histo_maxCharge_TECM_D2,runList,outputFile_maxCharge,"maxChargeCorrected");
+  fitSignalShape(histo_maxCharge_TECM_D3,runList,outputFile_maxCharge,"maxChargeCorrected");
+  fitSignalShape(histo_maxCharge_TECM_D4,runList,outputFile_maxCharge,"maxChargeCorrected");
+  fitSignalShape(histo_maxCharge_TECM_D5,runList,outputFile_maxCharge,"maxChargeCorrected");
+  fitSignalShape(histo_maxCharge_TECM_D6,runList,outputFile_maxCharge,"maxChargeCorrected");
+  fitSignalShape(histo_maxCharge_TECM_D7,runList,outputFile_maxCharge,"maxChargeCorrected");
+  fitSignalShape(histo_maxCharge_TECM_D8,runList,outputFile_maxCharge,"maxChargeCorrected");
+  fitSignalShape(histo_maxCharge_TECM_D9,runList,outputFile_maxCharge,"maxChargeCorrected");
   
   ///
   fitSignalShape(histo_SoN_TIB_L1,runList,outputFile_SoN,"SoN");

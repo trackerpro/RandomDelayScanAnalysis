@@ -137,7 +137,7 @@ delayValidation(<merged file>,<no correction file stored in ../data/nocorrection
 
 ## Delay analysis per module
 
-* Run the delay analysis over a set of different runs with different random delay configuration (fine time calibration per module).
+* Run the delay analysis over a set of different runs with different random delay configuration (fine time calibration per module). Nota bene: the output tree is build from the readoutMap which basic entities are APV chips, hence the number of entries in the final tree will be equal to the number of APVs and not the number of modules. APV within the same module, detid or dcuId, will have the same delay correction to be applied on the PLL.
 
 ```sh
 cd macros/makeDelayAnalysis
@@ -146,15 +146,13 @@ root -l;
 delayValidationPerModule(<input directory where all the merged files for different runs are located>,<no correction file stored in ../data/nocorrection.root>,<postfix: substring to be find to be sure to run on the merged files>, <observable name (branch name)>, <outputDIR: name and path of the output directory>,<saveMeanCanvas: store some gaussian fits of mean charge vs delay>, <saveMPVCanvas: save MPV fit canvases vs delay >, <saveCorrectionTree: to save the delay per channel in a TTree format. Can be analyzed then through the tkCommissioner>
 ```
 
-### Compare different runs:
+### Produce the final correction file:
 
-* The code produces a lighter output file with a tree called again delayCorrection. It contains three branches: Detid, fedCh and the correction in units of 25/24ns, to be propagated to the DB.
+* The code produces a lighter output file with a tree called again delayCorrection. It contains three branches: Detid, fedCh and the correction in units of 25/24ns, to be propagated to the DB. There are two macros, one to produce layer based corrections to be run on the output produced by delayValidation.C, the other produces module based corrections to be run on the output of delayValidationPerModule.C. Example provided only for the second one. The code also eliminates degenerancy in the detid.
 
 ```sh
-cd macros/makeRunComparison
+cd macros/makeCorrectionFile
 root -l;
-.L compareClustersVsRun.C;
-compareClustersVsRun(<inputDIR : directory with all the dpg trees for all the runs> <runList: list of run numbers to be considered> <outputDIR: where plots and root files are created> <postfix: string to grep to access to input root files>);
+.L delayCorrectionPerModule.C;
+delayCorrectionPerModule(<file name containing the delay tree tree>, <output directory>, <outout file name containing corrections>, <saveFits: save canvas for % reductionFactor modules showing charge vs delay>, <delayCutForPlotting: max delay in order to display large correction modules on the trackermap>, <observable>);
 ```
-
-

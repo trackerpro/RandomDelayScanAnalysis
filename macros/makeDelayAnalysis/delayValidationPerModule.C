@@ -48,6 +48,8 @@ static float maxSigma = 20;
 static bool doFitOfClusterShape = true;
 // decide whether use histograms values or fitted ones
 static bool storeFitOfClusterShape = true;
+// fit range in quantiles
+static std::pair<double,double> fit_quantiles = std::make_pair<double,double>(0.001,0.995);
  
 /// function that runs on the evnet and produce profiles for layers
 void ChannnelPlots(const std::vector<std::string> & fileNames,
@@ -174,41 +176,50 @@ void ChannnelPlots(const std::vector<std::string> & fileNames,
 	float xMin   = 0, xMax = 0;
 	int   nBinsX = 0;
 	setLimitsAndBinning(observable,xMin,xMax,nBinsX);	
-	// make the observable                                                                                                                                                                 
-	RooRealVar* charge = new RooRealVar("charge","",xMin,xMax);
-	RooArgList* vars   = new RooArgList(*charge);
-	// covert histogram in a RooDataHist                                                                                                                                                        
-	RooDataHist* chargeDistribution = new RooDataHist(itHisto->second->GetName(),"",*vars,itHisto->second);
-	// Build a Landau PDF                                                                                                                                                                        
-	RooRealVar* mean_landau  = new RooRealVar("mean_landau","",itHisto->second->GetMean(),1.,itHisto->second->GetMean()*10);
-	RooRealVar* sigma_landau = new RooRealVar("sigma_landau","",itHisto->second->GetRMS(),1.,itHisto->second->GetRMS()*10);
-	RooLandau*  landau       = new RooLandau("landau","",*charge,*mean_landau,*sigma_landau);
-	// Build a Gaussian PDF                                                                                                                                                                   
-	RooRealVar*  mean_gauss  = new RooRealVar("mean_gauss","",0.,-150,150);
-	RooRealVar*  sigma_gauss = new RooRealVar("sigma_gauss","",10,1.,50);
-	RooGaussian* gauss       = new RooGaussian("gauss","",*charge,*mean_gauss,*sigma_gauss);
-	// Make a convolution                                                                                                                                                                        
-	RooFFTConvPdf* landauXgauss = new RooFFTConvPdf("landauXgauss","",*charge,*landau,*gauss);
-	// Make an extended PDF                                                                                                                                                                       
-	RooRealVar*   normalization = new RooRealVar("normalization","",itHisto->second->Integral(),itHisto->second->Integral()/10,itHisto->second->Integral()*10);
-	RooExtendPdf* totalPdf      = new RooExtendPdf("totalPdf","",*landauXgauss,*normalization);
-	// Perform the FIT                                                                                                                                                                        
-	RooFitResult* fitResult = totalPdf->fitTo(*chargeDistribution,RooFit::Range(xMin,xMax),RooFit::Extended(kTRUE),RooFit::Save(kTRUE));
 
-	// get parameters                                                                                                                                                                            
-	RooArgList pars = fitResult->floatParsFinal();
-	TF1* fitfunc = totalPdf->asTF(*charge,pars,*charge);	
-	if(fitResult->status() != 0 or fitResult->covQual() <= 1){ 
+	// make the observable                                                                                                                                                                 
+	RooRealVar charge ("charge","",xMin,xMax);
+	RooArgList vars (charge);
+	double x_qmin = 0, x_qmax = 0;
+	itHisto->second->Scale(1./itHisto->second->Integral());
+	itHisto->second->GetQuantiles(1,&x_qmin,&fit_quantiles.first);
+	itHisto->second->GetQuantiles(1,&x_qmax,&fit_quantiles.second);
+	charge.setRange("fitRange",x_qmin,x_qmax);
+	
+	// covert histogram in a RooDataHist                                                                                                                                                        
+	RooDataHist chargeDistribution (itHisto->second->GetName(),"",vars,itHisto->second);
+
+	// Build a Landau Conv Novo PDF                                                                                                                                                         
+	RooRealVar ml ("ml","",itHisto->second->GetMean(),1.,itHisto->second->GetMean()*10);
+	RooRealVar sl ("sl","",itHisto->second->GetRMS(),1.,itHisto->second->GetRMS()*10);
+	RooLandau  landau ("landau","",charge,ml,sl);
+	RooRealVar mg ("mg","",0.,-50,50);
+	RooRealVar sg ("sg","",10,0.01,50);
+	RooRealVar ag ("ag","",0.1,-10,10);
+	RooNovosibirsk novo ("novo","",charge,mg,sg,ag);
+	RooAbsPdf* total_pdf = new RooFFTConvPdf("landauNovosibirsk","",charge,landau,novo);
+
+	// Perform the fit
+	RooFitResult* fitResult = total_pdf->fitTo(chargeDistribution,RooFit::Save(kTRUE),RooFit::SumW2Error(kTRUE),RooFit::Offset(kTRUE));
+	fitResult = total_pdf->fitTo(chargeDistribution,RooFit::Range("fitRange"),RooFit::Save(kTRUE),RooFit::SumW2Error(kTRUE),RooFit::Offset(kTRUE));
+
+	if(fitResult->status() != 0 or fitResult->covQual() <= 0){ 
 	  iBadChannelFit++;	    
-	  channelMapMPV[iMap.first]->SetBinContent(channelMapMPV[iMap.first]->FindBin(itHisto->first),itHisto->second->GetBinCenter(itHisto->second->GetMaximumBin()));
 	  // as error use the error on the mean as a proxy
+	  channelMapMPV[iMap.first]->SetBinContent(channelMapMPV[iMap.first]->FindBin(itHisto->first),itHisto->second->GetBinCenter(itHisto->second->GetMaximumBin()));
 	  channelMapMPV[iMap.first]->SetBinError(channelMapMPV[iMap.first]->FindBin(itHisto->first),itHisto->second->GetMeanError());	  
 	}
 	else{
- 	  channelMapMPV[iMap.first]->SetBinContent(channelMapMPV[iMap.first]->FindBin(itHisto->first),fitfunc->GetMaximumX(xMin,xMax));
-	  // as error use the error on Landau MPV as a proxy
-	  channelMapMPV[iMap.first]->SetBinError(channelMapMPV[iMap.first]->FindBin(itHisto->first),mean_landau->getError());	  
 
+	  RooPlot* rooframe = charge.frame();
+	  chargeDistribution.plotOn(rooframe,RooFit::Name("data"));
+	  total_pdf->plotOn(rooframe,RooFit::Name("total_pdf"),RooFit::Range("fitRange",kFALSE));
+	  RooCurve* pdf_graph = rooframe->getCurve("total_pdf");
+	  TF1* pdf_func = new TF1("pdf_func",[&](double*x, double *p){ return pdf_graph->Eval(x[0]);},x_qmin,x_qmax,0);
+	  	  
+ 	  channelMapMPV[iMap.first]->SetBinContent(channelMapMPV[iMap.first]->FindBin(itHisto->first),pdf_func->Mean(x_qmin,x_qmax));
+	  channelMapMPV[iMap.first]->SetBinError(channelMapMPV[iMap.first]->FindBin(itHisto->first),itHisto->second->GetMeanError());	  
+	  
 	  if(storeFitOfClusterShape and iChannel %20 == 0){
 	    if(not outfile->GetDirectory(Form("Delay_%d",itHisto->first)))
 	      outfile->mkdir(Form("Delay_%d",itHisto->first));
@@ -216,15 +227,16 @@ void ChannnelPlots(const std::vector<std::string> & fileNames,
 	    
 	    // plot to store in a root file                                                                                                                                 
 	    canvas->cd();
-	    itHisto->second->Scale(1./itHisto->second->Integral(),"width");
-
+	    
 	    TH1* frame = (TH1*) itHisto->second->Clone(Form("frame_%s",itHisto->second->GetName()));
 	    frame->Reset();
 	    frame->GetYaxis()->SetTitle("a.u.");
-	    if(observable == "maxCharge")
+	    if(TString(observable).Contains("maxCharge"))
 	      frame->GetXaxis()->SetTitle("Leading strip charge (ADC)");
-	    else
-	      frame->GetXaxis()->SetTitle("Signal over Noise");
+	    else if(observable == "clCorrectedSignalOverNoise")
+	      frame->GetXaxis()->SetTitle("Cluster S/N");
+	    else if(observable == "clCorrectedCharge")
+	      frame->GetXaxis()->SetTitle("Cluster charge (ADC)");
 	    
 	    frame->GetXaxis()->SetTitleOffset(1.1);
 	    frame->GetYaxis()->SetTitleOffset(1.1);
@@ -239,62 +251,30 @@ void ChannnelPlots(const std::vector<std::string> & fileNames,
 	    itHisto->second->SetMarkerStyle(20);
 	    itHisto->second->SetLineColor(kBlack);
 
-	    fitfunc->SetLineWidth(2);
-	    fitfunc->SetLineColor(kRed);
-	    fitfunc->Draw("same");
+	    pdf_func->SetLineColor(kRed);
+	    pdf_func->SetLineWidth(2);
+	    pdf_func->Draw("Csame");
 	    itHisto->second->Draw("EPsame");
-
-	    TPaveText leg (0.55,0.55,0.9,0.80,"NDC");
-	    leg.SetTextAlign(11);
-	    leg.SetTextFont(42);
-	    leg.SetFillColor(0);
-	    leg.SetFillStyle(0);
-	    leg.AddText("");
-	    leg.AddText(Form("Landau Mean  = %.1f #pm %.1f",mean_landau->getVal(),mean_landau->getError()));
-	    leg.AddText(Form("Landau Width = %.1f #pm %.1f",sigma_landau->getVal(),sigma_landau->getError()));
-	    leg.AddText(Form("Gauss Mean  = %.1f #pm %.1f",mean_gauss->getVal(),mean_gauss->getError()));
-	    leg.AddText(Form("Gauss Width = %.1f #pm %.1f",sigma_gauss->getVal(),sigma_gauss->getError()));
-	    leg.AddText(Form("Integral = %.1f #pm %.1f",normalization->getVal(),normalization->getError()));
-
-	    // to calculate the chi2                                                                                                                                                            
-	    RooPlot* rooframe = charge->frame();
-	    chargeDistribution->plotOn(rooframe);
-	    totalPdf->plotOn(rooframe);
-	    float chi2 = rooframe->chiSquare(pars.getSize());
-	    leg.AddText(Form("#chi2/ndf = %.3f",chi2));
-	    leg.Draw("same");
-
-	    canvas->Modified();
-	    CMS_lumi(canvas,"",false);
 	    frame->GetYaxis()->SetRangeUser(0,itHisto->second->GetMaximum()*1.5);
+	    CMS_lumi(canvas,"",false);
+	    canvas->Modified();
 	    canvas->Write(itHisto->second->GetName());
 	    if(frame) delete frame;
 	    if(rooframe) delete rooframe;
+	    if(pdf_func) delete pdf_func;
 	  }
 	}
-
-	if(totalPdf) delete totalPdf;
-	if(landauXgauss) delete landauXgauss;
-	if(gauss) delete gauss;
-	if(landau) delete landau;
-	if(chargeDistribution) delete chargeDistribution;
-	if(normalization) delete normalization;
-	if(sigma_gauss) delete sigma_gauss;
-	if(mean_gauss) delete mean_gauss;
-	if(mean_landau) delete mean_landau;
-	if(sigma_landau) delete sigma_landau;
-	if(charge) delete charge;
 	if(fitResult) delete fitResult;
-	if(vars) delete vars;
-	if(fitfunc) delete fitfunc;
-
+	if(total_pdf) delete total_pdf;
       }      
     }    
   }
   std::cout<<std::endl;
   if(doFitOfClusterShape)
     std::cout<<"Bad channel fit from Landau+Gaus fit "<<iBadChannelFit<<std::endl;  
-  
+  if(storeFitOfClusterShape)
+    outfile->Close();
+
   // correct profiles and fit them with a gaussian
   std::cout<<"Analyze each single channel --> Profile "<<std::endl;
   long int iFit = 0;
@@ -360,7 +340,7 @@ void saveOutputTree(TTree* readoutMap, map<unsigned int,TH1F* > & mapHist, map<u
   readoutMap->SetBranchStatus("*",kTRUE);
   readoutMap->SetBranchStatus("moduleName",kFALSE);
   readoutMap->SetBranchStatus("moduleId",kFALSE);
-  readoutMap->SetBranchStatus("delay",kFALSE);  
+  readoutMap->SetBranchStatus("delaymap",kFALSE);  
   outputTree = (TTree*) readoutMap->CopyTree("");
   outputTree->SetName("delayCorrection");
   
@@ -460,6 +440,7 @@ void saveOutputTree(TTree* readoutMap, map<unsigned int,TH1F* > & mapHist, map<u
 	  TCanvas* c1b = prepareCanvas(Form("detid_%d",detid),observable);
 	  plotAll(c1b,mapHist[detid]);
 	  c1b->Write();
+	  delete c1b;
 	}
 	outputFile->cd();	
       }
@@ -475,6 +456,7 @@ void saveOutputTree(TTree* readoutMap, map<unsigned int,TH1F* > & mapHist, map<u
 	  TCanvas* c1b = prepareCanvas(Form("detid_%d",detid),observable);
 	  plotAll(c1b,mapHist[detid]);
 	  c1b->Write();
+	  delete c1b;
 	}
 	outputFile->cd();	
       }
@@ -490,6 +472,7 @@ void saveOutputTree(TTree* readoutMap, map<unsigned int,TH1F* > & mapHist, map<u
 	  TCanvas* c1b = prepareCanvas(Form("detid_%d",detid),observable);
 	  plotAll(c1b,mapHist[detid]);
 	  c1b->Write();
+	  delete c1b;
 	}
 	outputFile->cd();	
       } 
@@ -505,6 +488,7 @@ void saveOutputTree(TTree* readoutMap, map<unsigned int,TH1F* > & mapHist, map<u
 	  TCanvas* c1b = prepareCanvas(Form("detid_%d",detid),observable);
 	  plotAll(c1b,mapHist[detid]);
 	  c1b->Write();
+	  delete c1b;
 	}
 	outputFile->cd();	
       } 
@@ -520,6 +504,7 @@ void saveOutputTree(TTree* readoutMap, map<unsigned int,TH1F* > & mapHist, map<u
 	  TCanvas* c1b = prepareCanvas(Form("detid_%d",detid),observable);
 	  plotAll(c1b,mapHist[detid]);
 	  c1b->Write();
+	  delete c1b;
 	}
 	outputFile->cd();	
       } 
@@ -535,6 +520,7 @@ void saveOutputTree(TTree* readoutMap, map<unsigned int,TH1F* > & mapHist, map<u
 	  TCanvas* c1b = prepareCanvas(Form("detid_%d",detid),observable);
 	  plotAll(c1b,mapHist[detid]);
 	  c1b->Write();
+	  delete c1b;
 	}
 	outputFile->cd();
       }
@@ -628,9 +614,20 @@ void delayValidationPerModule(string inputDIR,
   std::map<unsigned int,int > fitStatusMPV;
   ChannnelPlots(fileNames,nEvents,delayCorrections,channelMap,channelMapMean,channelMapMPV,fitStatusMean,fitStatusMPV,observable,outputDIR);  
   
-  // dumpt in a text file to be displayed on the tracker map and uncertainty  
-  // produce outputs
-  if(not saveCorrectionTree){
+  if(saveMeanCanvas)
+    saveAll(channelMapMean,outputDIR,observable,"Mean"); // save all the plots into a single root files
+  if(saveMPVCanvas)
+    saveAll(channelMapMPV,outputDIR,observable,"MPV");
+  
+  //// outptut tree with analysis result
+  if(saveCorrectionTree){
+    TFile* file0 = TFile::Open(fileNames.front().c_str(),"READ");
+    TTree* readoutMap = (TTree*) file0->FindObjectAny("readoutMap");
+    saveOutputTree(readoutMap,channelMapMean,fitStatusMean,outputDIR,"Mean",observable);
+    saveOutputTree(readoutMap,channelMapMPV,fitStatusMPV,outputDIR,"MPV",observable);
+    file0->Close();
+  }
+  else{
     cout<<"### Dump peak in a text file for Mean"<<endl;
     ofstream dumpMean((outputDIR+"/dumpBestDelay_Mean_"+observable+".txt").c_str());
     int nullPointers = 0;
@@ -670,20 +667,6 @@ void delayValidationPerModule(string inputDIR,
 	dumpMPVError<<imap.first<<"   "<<imap.second->GetFunction(Form("Gaus_%s",imap.second->GetName()))->GetParError(1)<<"\n";
     }  
     dumpMPVError.close();
-  }
-  
-  if(saveMeanCanvas)
-    saveAll(channelMapMean,outputDIR,observable,"Mean"); // save all the plots into a single root files
-  if(saveMPVCanvas)
-    saveAll(channelMapMPV,outputDIR,observable,"MPV");
-  
-  //// outptut tree with analysis result
-  if(saveCorrectionTree){
-    TFile* file0 = TFile::Open(fileNames.front().c_str(),"READ");
-    TTree* readoutMap = (TTree*) file0->FindObjectAny("readoutMap");
-    saveOutputTree(readoutMap,channelMapMean,fitStatusMean,outputDIR,"Mean",observable);
-    saveOutputTree(readoutMap,channelMapMPV,fitStatusMPV,outputDIR,"MPV",observable);
-    file0->Close();
   }
   cout<<"### Clear and Close "<<endl;  
   channelMap.clear();
