@@ -20,7 +20,7 @@ scramv1 b -j 4;
 * Example on how to run on a couple of input files. Location of streamer file is ```/store/t0streamer/Data/``` for the various streams. The job has to run the re-packing, un-packing, local and global tracking steps.
     
 ```sh
-cmsRun trackerdpganalysis_cfg.py isRawDAQFile=True globalTag=run3_data_express nThreads=4 inputDelayFile=TrackerDealyMap_Run346446_pll.csv inputFiles=/store/t0streamer/Data/Express/000/346/446/run346446_ls0001_streamExpress_StorageManager.dat delayStep=0 triggerList="HLT_HcalNZS*","HLT_L1ETT_ZeroBias*","HLT_PixelClusters_WP1_ZeroBias*" maxEvents=100
+cmsRun trackerdpganalysis_cfg.py isRawDAQFile=True globalTag=run3_data_express nThreads=4 inputDelayFile=TrackerDealyMap_Run346446_pll.csv inputFiles=/store/t0streamer/Data/Express/000/346/446/run346446_ls0001_streamExpress_StorageManager.dat triggerList="HLT_HcalNZS*","HLT_L1ETT_ZeroBias*","HLT_PixelClusters_WP1_ZeroBias*" maxEvents=100
 ```
 
 Trigger that can be requried depending on the output stream can be accessed via OMS for each run number. Above examples are taken for run 346446 taken in fall 2021 at Run3 commissioning startup.
@@ -28,7 +28,7 @@ Trigger that can be requried depending on the output stream can be accessed via 
 * Submit jobs via lxbatch (condorHT) on these streamer files are not published in crab:
 
 ```sh
-python3 submitBatchJobs.py --inputDIR /eos/cms/store/t0streamer/Data/Express/000/346/446/ --outputDIR /eos/cms/store/group/dpg_tracker_strip/tracker/Online/RandomDelayScan/Run346446/MinimumBias0/ --jsonFile json_346446.json --eventsPerJob 1500 --delayStep 0 --nThreads 2 --triggerList "HLT_HcalNZS*,HLT_L1ETT_ZeroBias*,HLT_PixelClusters_WP1_ZeroBias*,HLT_PixelClusters_WP2_ZeroBias*" --globalTag run3_data_express --delayFileDirectory ../crab/2021/ --jobDIR jobs_minimumbias0 --isRawDAQFile --submit
+python3 submitBatchJobs.py --inputDIR /eos/cms/store/t0streamer/Data/Express/000/346/446/ --outputDIR /eos/cms/store/group/dpg_tracker_strip/tracker/Online/RandomDelayScan/Run346446/MinimumBias0/ --jsonFile json_346446.json --eventsPerJob 1500 --nThreads 2 --triggerList "HLT_HcalNZS*,HLT_L1ETT_ZeroBias*,HLT_PixelClusters_WP1_ZeroBias*,HLT_PixelClusters_WP2_ZeroBias*" --globalTag run3_data_express --delayFileDirectory ../crab/2021/ --jobDIR jobs_minimumbias0 --isRawDAQFile --submit
 ```	
 ## Run on RAW EDM files
     
@@ -51,7 +51,7 @@ cmsRun trackerdpganalysis_cfg.py isRawEDMFile=True globalTag=run3_data nThreads=
 * Submit jobs via lxbatch (condorHT) on these streamer files are not published in crab:
 
 ```sh
-python3 submitBatchJobs.py --inputDIR /eos/cms//tier0/store/data/Commissioning2021/MinimumBias0/RAW/v1/000/346/446/ --outputDIR /eos/cms/store/group/dpg_tracker_strip/tracker/Online/RandomDelayScan/Run346446/MinimumBias0/ --jsonFile json_346446.json --eventsPerJob 1500 --delayStep 0 --triggerList "HLT_HcalNZS*,HLT_L1ETT_ZeroBias*,HLT_PixelClusters_WP1_ZeroBias*,HLT_PixelClusters_WP2_ZeroBias*" --globalTag run3_data --delayFileDirectory ../crab/2021/ --jobDIR jobs_minimumbias0 --isRawEDMFile --submit
+python3 submitBatchJobs.py --inputDIR /eos/cms//tier0/store/data/Commissioning2021/MinimumBias0/RAW/v1/000/346/446/ --outputDIR /eos/cms/store/group/dpg_tracker_strip/tracker/Online/RandomDelayScan/Run346446/MinimumBias0/ --jsonFile json_346446.json --eventsPerJob 1500 --triggerList "HLT_HcalNZS*,HLT_L1ETT_ZeroBias*,HLT_PixelClusters_WP1_ZeroBias*,HLT_PixelClusters_WP2_ZeroBias*" --globalTag run3_data --delayFileDirectory ../crab/2021/ --jobDIR jobs_minimumbias0 --isRawEDMFile --submit
 ```
 
 ## Run on FEVT files from ExpressStream
@@ -66,7 +66,7 @@ dasgoclient --query "site dataset=/ExpressPhysics/Commissioning2021-Express-v1/F
 * If files are on-disk, you can use the following commands:
 
 ```sh
-cmsRun trackerdpganalysis_cfg.py globalTag=run3_data_express nThreads=2 inputDelayFile=TrackerDealyMap_Run346446_pll.csv inputFiles=/store/express/Commissioning2021/ExpressPhysics/FEVT/Express-v1/000/346/446/00000/0455c1c4-357f-434c-951f-ab6f2ba98683.root delayStep=0 triggerList="HLT_HcalNZS*","HLT_L1ETT_ZeroBias*","HLT_PixelClusters_WP1_ZeroBias*" maxEvents=100
+cmsRun trackerdpganalysis_cfg.py globalTag=run3_data_express nThreads=2 inputDelayFile=TrackerDealyMap_Run346446_pll.csv inputFiles=/store/express/Commissioning2021/ExpressPhysics/FEVT/Express-v1/000/346/446/00000/0455c1c4-357f-434c-951f-ab6f2ba98683.root triggerList="HLT_HcalNZS*","HLT_L1ETT_ZeroBias*","HLT_PixelClusters_WP1_ZeroBias*" maxEvents=100
 ```
     
 * To run crab jobs: 
