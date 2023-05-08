@@ -3,12 +3,16 @@
 ## CMSSW Setup:
 
 ```sh
-cmsrel CMSSW_12_0_3_patch1 ;
-cd CMSSW_12_0_3_patch1/src ;
+cmsrel CMSSW_13_0_5 ;
+cd CMSSW_13_0_5/src ;
 cmsenv;		      
 git-cms-init; 
+git remote add trackerpro-cmssw https://github.com/trackerpro/cmssw.git
+git fetch trackerpro-cmssw
+git-cms-addpkg DataFormats/SiStripCommon
+git merge trackerpro-cmssw/random_delay_scan_update
 git clone git@github.com:trackerpro/RandomDelayScanAnalysis.git TrackerDAQAnalysis/RandomDelayScanAnalysis
-scramv1 b -j 4;					 
+scram b -j 4;					 
 ```
 
 ## Run on t0streamer files
