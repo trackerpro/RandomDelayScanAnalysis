@@ -3,16 +3,17 @@
 ## CMSSW Setup:
 
 ```sh
-cmsrel CMSSW_12_4_2 ;
-cd CMSSW_12_4_2/src ;
+cmsrel CMSSW_13_0_5 ;
+cd CMSSW_13_0_5/src ;
 cmsenv;		      
 git-cms-init; 
 git remote add trackerpro-cmssw git@github.com:trackerpro/cmssw.git;
 git fetch trackerpro-cmssw;
 git-cms-addpkg DataFormats/SiStripCommon;
 git-cms-addpkg EventFilter/SiStripRawToDigi;
+git merge trackerpro-cmssw/random_delay_scan_update
 git clone git@github.com:trackerpro/RandomDelayScanAnalysis.git TrackerDAQAnalysis/RandomDelayScanAnalysis
-scramv1 b -j 4;					 
+scram b -j 4;					 
 ```
 
 ## Run on RAW DAQ files
