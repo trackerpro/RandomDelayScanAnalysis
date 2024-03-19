@@ -10,9 +10,6 @@ options.register ('ouputFileName',"trackerDPG.root",VarParsing.multiplicity.sing
 options.register ('jsonFile',"",VarParsing.multiplicity.singleton,VarParsing.varType.string,
                   'json file to apply in case one wants to ....');
 
-options.register ('isRawDAQFile',False,VarParsing.multiplicity.singleton,VarParsing.varType.bool,
-                  'when running as input a raw DAQ file instead of a standard FEVT/AOD');
-
 options.register ('isRawEDMFile',False,VarParsing.multiplicity.singleton,VarParsing.varType.bool,
                   'when running as input a raw EDM file instead of a standard FEVT/AOD')
 
@@ -45,12 +42,8 @@ process.MessageLogger.cerr.FwkReport.reportEvery = 100
 process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(options.maxEvents) )
 
 ## use the right source depending on the type of input
-if options.isRawDAQFile:
-    process.source = cms.Source("NewEventStreamFileReader",
-                                fileNames = cms.untracked.vstring(options.inputFiles))
-else:
-    process.source = cms.Source ("PoolSource", 
-                                 fileNames = cms.untracked.vstring(options.inputFiles))
+process.source = cms.Source ("PoolSource", 
+                             fileNames = cms.untracked.vstring(options.inputFiles))
 
 ## process only events within the range
 if options.eventRange:
@@ -92,8 +85,8 @@ process.TFileService = cms.Service("TFileService",
 
 
 ### when one runs on a AOD or FEVT file and wants to re-fit tracks from already existing ones
-if not options.isRawDAQFile and not options.isRawEDMFile: 
-
+if not options.isRawEDMFile:
+    
     process.load('RecoTracker.DeDx.dedxEstimators_cff')
     process.load("RecoTracker.TrackProducer.TrackRefitter_cfi")
     process.load("RecoTracker.TrackProducer.TrackRefitters_cff")
@@ -118,8 +111,8 @@ if not options.isRawDAQFile and not options.isRawEDMFile:
     process.FedChannelDigis.ProductLabel = cms.InputTag('rawDataCollector')
     process.FedChannelDigis.LegacyUnpacker = cms.bool(False)
 
-### run the tracking step on top of raw DAQ files
-elif options.isRawDAQFile or options.isRawEDMFile:
+### run the tracking step on top of RAW files
+else:
 
     process.load('Configuration.StandardSequences.RawToDigi_cff')    
     process.load('Configuration.StandardSequences.L1Reco_cff')
@@ -169,7 +162,7 @@ process.analysis = cms.EDAnalyzer('TrackerDpgAnalysis',
 )
 
 
-if  options.isRawDAQFile or options.isRawEDMFile: 
+if  options.isRawEDMFile: 
     process.analysis.TracksLabel = cms.InputTag("generalTracks")
 
 if options.jsonFile: ### to be checked / created by hand when the runs are take
@@ -178,7 +171,7 @@ if options.jsonFile: ### to be checked / created by hand when the runs are take
 process.edTask = cms.Task()
 
 ### Define the Path to be executed
-if options.isRawDAQFile or options.isRawEDMFile:
+if options.isRawEDMFile:
     process.doAlldEdXEstimators += process.dedxMedian
     process.edTask.add(process.globalreco_trackingTask);
     process.edTask.add(process.localrecoTask);

@@ -19,7 +19,6 @@ parser.add_option('--jsonFile',     action="store", type="string", dest="jsonFil
 parser.add_option('--nThreads',     action="store", type=int,      dest="nThreads",      default=2,  help="number of threads")
 parser.add_option('--filesPerJob',  action="store", type=int,      dest="filesPerJob",   default=1,  help="number of files to process in each --> to be used with small files")
 parser.add_option('--eventsPerJob', action="store", type=int,      dest="eventsPerJob",  default=1000, help="number of events to process in each job --> to be used with big files")
-parser.add_option('--isRawDAQFile',    action="store_true", dest="isRawDAQFile", help="isRawDAQFile")
 parser.add_option('--isRawEDMFile',    action="store_true", dest="isRawEDMFile", help="isRawEDMFile")
 parser.add_option('--triggerList',  action="store", type="string", dest="triggerList",   default="HLT_ZeroBias*", help="list of triggers to be requested")
 parser.add_option('--globalTag',    action="store", type="string", dest="globalTag",     default="run3_data", help="global tag to be used in the job")
@@ -35,16 +34,10 @@ if __name__ == '__main__':
   currentDIR = os.getcwd();
   
   listOfFiles = [];
-  if not options.isRawDAQFile:
-    for item in glob.glob(options.inputDIR+"/*root", recursive=True):
-      if item == "" or item == "\n": continue;
-      if not ".root" in item: continue;
-      listOfFiles.append(item.replace("\n",""));
-  else:
-    for item in glob.glob(options.inputDIR+"/*root", recursive=True):
-      if item == "" or item == "\n": continue;
-      if not ".dat" in item: continue;
-      listOfFiles.append(item.replace("\n",""));
+  for item in glob.glob(options.inputDIR+"/*root", recursive=True):
+    if item == "" or item == "\n": continue;
+    if not ".root" in item: continue;
+    listOfFiles.append(item.replace("\n",""));
     
   print ("number of files ffound : ",len(listOfFiles));
 
@@ -64,71 +57,35 @@ if __name__ == '__main__':
     else:        
       file_list[njobs].append("file:"+filename);
 
-    if not options.isRawDAQFile:
 
-      tfile = ROOT.TFile.Open(filename);
-      tree  = tfile.Get("Events");
-      nevents = tree.GetEntries();
-      ## loop on events and save the starting one
-      if nevents == 0: continue;
-      tree.SetBranchStatus("*",0);
-      tree.SetBranchStatus("EventAuxiliary",1);
-      for event in range(0,nevents):        
-        tree.GetEntry(event);
-        if event_counter % options.eventsPerJob == 0:
-          event_list.append({"run":  tree.EventAuxiliary.run(),  
-                             "lumi":  tree.EventAuxiliary.luminosityBlock(),  
-                             "event":  tree.EventAuxiliary.event()});
-          njobs = njobs + 1;
-          if len(file_list) <= njobs:
-            file_list.append([]);
-            file_list[njobs].append("file:"+filename);
-          else:        
-            file_list[njobs].append("file:"+filename);
+    tfile = ROOT.TFile.Open(filename);
+    tree  = tfile.Get("Events");
+    nevents = tree.GetEntries();
+    ## loop on events and save the starting one
+    if nevents == 0: continue;
+    tree.SetBranchStatus("*",0);
+    tree.SetBranchStatus("EventAuxiliary",1);
+    for event in range(0,nevents):        
+      tree.GetEntry(event);
+      if event_counter % options.eventsPerJob == 0:
+        event_list.append({"run":  tree.EventAuxiliary.run(),  
+                           "lumi":  tree.EventAuxiliary.luminosityBlock(),  
+                           "event":  tree.EventAuxiliary.event()});
+        njobs = njobs + 1;
+        if len(file_list) <= njobs:
+          file_list.append([]);
+          file_list[njobs].append("file:"+filename);
+        else:        
+          file_list[njobs].append("file:"+filename);
         event_counter = event_counter + 1;
 
-      if ifile == len(listOfFiles)-1 and event_counter % options.eventsPerJob != 0:
-        tree.GetEntry(nevents);
-        event_list.append({"run":  tree.EventAuxiliary.run(),
-                           "lumi":  tree.EventAuxiliary.luminosityBlock(),
-                           "event":  tree.EventAuxiliary.event()});        
-        njobs = njobs + 1;
+    if ifile == len(listOfFiles)-1 and event_counter % options.eventsPerJob != 0:
+      tree.GetEntry(nevents);
+      event_list.append({"run":  tree.EventAuxiliary.run(),
+                         "lumi":  tree.EventAuxiliary.luminosityBlock(),
+                         "event":  tree.EventAuxiliary.event()});        
+      njobs = njobs + 1;
 
-    else:
-
-      out = subprocess.run("cmsRun ../test/countEventsInDat_cfg.py inputFiles=file:"+filename+" &> event_list.txt", shell=True);
-      file = open("event_list.txt","r")
-      full_event_list = [];
-      for line in file:
-        if line == "" : continue;      
-        if not "countEvents::filter" in line: continue;
-        run   = line.split(",")[1];
-        lumi  = line.split(",")[2];
-        event = line.split(",")[3];
-        full_event_list.append({"run" : run,
-                                "lumi": lumi,
-                                "event": event});
-
-      out = subprocess.run("rm event_list.txt",shell=True);
-
-      for event in range(0,len(full_event_list)):
-        if event_counter % options.eventsPerJob == 0: 
-          event_list.append({"run":  full_event_list[event]["run"],
-                             "lumi": full_event_list[event]["lumi"],
-                             "event": full_event_list[event]["event"]});
-          njobs = njobs + 1;
-          if len(file_list) <= njobs:
-            file_list.append([]);
-            file_list[njobs].append("file:"+filename);
-          else:        
-            file_list[njobs].append("file:"+filename);
-        event_counter = event_counter + 1;
-      
-      if ifile == len(listOfFiles)-1 and event_counter % options.eventsPerJob != 0:
-        event_list.append({"run":  full_event_list[event]["run"],
-                           "lumi": full_event_list[event]["lumi"],
-                           "event": full_event_list[event]["event"]});          
-        njobs = njobs + 1;
 
   print("Creating njbos ",njobs);
   print(event_list);
@@ -153,12 +110,10 @@ if __name__ == '__main__':
       else:
         inputFiles += str(entry)+"";
 
-    if not options.isRawDAQFile and options.isRawEDMFile:
-      jobscript.write('cmsRun trackerdpganalysis_cfg.py inputFiles='+inputFiles+' ouputFileName=trackerDPG_'+str(ijob)+".root jsonFile="+options.jsonFile+" isRawDAQFile=False globalTag="+options.globalTag+" nThreads="+str(options.nThreads)+" inputDelayFile="+options.delayFile+" triggerList="+options.triggerList+" eventRange="+str(event_list[ijob]["run"])+":"+str(event_list[ijob]["lumi"])+":"+str(event_list[ijob]["event"])+"-"+str(event_list[ijob+1]["run"])+":"+str(event_list[ijob+1]["lumi"])+":"+str(event_list[ijob+1]["event"])+" isRawEDMFile=True\n");
-    elif not options.isRawDAQFile and not options.isRawDAQFile:
-      jobscript.write('cmsRun trackerdpganalysis_cfg.py inputFiles='+inputFiles+' ouputFileName=trackerDPG_'+str(ijob)+".root jsonFile="+options.jsonFile+" isRawDAQFile=False globalTag="+options.globalTag+" nThreads="+str(options.nThreads)+" inputDelayFile="+options.delayFile+" triggerList="+options.triggerList+" eventRange="+str(event_list[ijob]["run"])+":"+str(event_list[ijob]["lumi"])+":"+str(event_list[ijob]["event"])+"-"+str(event_list[ijob+1]["run"])+":"+str(event_list[ijob+1]["lumi"])+":"+str(event_list[ijob+1]["event"])+" isRawEDMFile=False\n");
+    if options.isRawEDMFile:
+      jobscript.write('cmsRun trackerdpganalysis_cfg.py inputFiles='+inputFiles+' ouputFileName=trackerDPG_'+str(ijob)+".root jsonFile="+options.jsonFile+" globalTag="+options.globalTag+" nThreads="+str(options.nThreads)+" inputDelayFile="+options.delayFile+" triggerList="+options.triggerList+" eventRange="+str(event_list[ijob]["run"])+":"+str(event_list[ijob]["lumi"])+":"+str(event_list[ijob]["event"])+"-"+str(event_list[ijob+1]["run"])+":"+str(event_list[ijob+1]["lumi"])+":"+str(event_list[ijob+1]["event"])+" isRawEDMFile=True\n");
     else:
-      jobscript.write('cmsRun trackerdpganalysis_cfg.py inputFiles='+inputFiles+' ouputFileName=trackerDPG_'+str(ijob)+".root jsonFile="+options.jsonFile+" isRawDAQFile=True globalTag="+options.globalTag+" nThreads="+str(options.nThreads)+" inputDelayFile="+options.delayFile+" triggerList="+options.triggerList+" eventRange="+str(event_list[ijob]["run"])+":"+str(event_list[ijob]["lumi"])+":"+str(event_list[ijob]["event"])+"-"+str(event_list[ijob+1]["run"])+":"+str(event_list[ijob+1]["lumi"])+":"+str(event_list[ijob+1]["event"])+" isRawEDMFile=False\n");
+      jobscript.write('cmsRun trackerdpganalysis_cfg.py inputFiles='+inputFiles+' ouputFileName=trackerDPG_'+str(ijob)+".root jsonFile="+options.jsonFile+" globalTag="+options.globalTag+" nThreads="+str(options.nThreads)+" inputDelayFile="+options.delayFile+" triggerList="+options.triggerList+" eventRange="+str(event_list[ijob]["run"])+":"+str(event_list[ijob]["lumi"])+":"+str(event_list[ijob]["event"])+"-"+str(event_list[ijob+1]["run"])+":"+str(event_list[ijob+1]["lumi"])+":"+str(event_list[ijob+1]["event"])+" isRawEDMFile=False\n");
     jobscript.write("/usr/bin/eos mkdir -p "+options.outputDIR+"\n");
     jobscript.write("xrdcp -f trackerDPG_"+str(ijob)+".root "+options.outputDIR+"/\n");       
     jobscript.write("fi\n")

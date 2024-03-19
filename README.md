@@ -38,7 +38,7 @@ asgoclient --query "site dataset=/MinimumBias0/Commissioning2021-v1/RAW"
 The ntuplizer can be run on RAW filess as follows:
 ```sh
 cd test
-cmsRun trackerdpganalysis_cfg.py globalTag=run3_data nThreads=2 inputDelayFile=TrackerDealyMap_Run346446_pll.csv inputFiles=<file location from dbs> triggerList="HLT_PixelClusters_WP2_ZeroBias*","HLT_L1ETT_ZeroBias*" maxEvents=100
+cmsRun trackerdpganalysis_cfg.py globalTag=run3_data nThreads=2 inputDelayFile=TrackerDealyMap_Run346446_pll.csv inputFiles=<file location from dbs> triggerList="HLT_PixelClusters_WP2_ZeroBias*","HLT_L1ETT_ZeroBias*" maxEvents=100 isRawEDMFile=True
 ```
 * You need to copy from P5 the PLL csv file containing the intiial random delay settings
 * The trigger list is used to select events that are passing a specific trigger. It is up to you to decide what you like most (if any)
@@ -66,7 +66,7 @@ dasgoclient --query "site dataset=/ExpressPhysics/Commissioning2021-Express-v1/F
 The ntuplizer can be run on FEVT filess as follows:
 ```sh
 cd test
-cmsRun trackerdpganalysis_cfg.py globalTag=run3_data_express nThreads=2 inputDelayFile=TrackerDealyMap_Run346446_pll.csv inputFiles=<file location from dbs> triggerList="HLT_HcalNZS*","HLT_L1ETT_ZeroBias*","HLT_PixelClusters_WP1_ZeroBias*" maxEvents=100
+cmsRun trackerdpganalysis_cfg.py globalTag=run3_data_express nThreads=2 inputDelayFile=TrackerDealyMap_Run346446_pll.csv inputFiles=<file location from dbs> triggerList="HLT_HcalNZS*","HLT_L1ETT_ZeroBias*","HLT_PixelClusters_WP1_ZeroBias*" maxEvents=100 isRawEDMFile=False
 ```
 * You need to copy from P5 the PLL csv file containing the intiial random delay settings
 * The trigger list is used to select events that are passing a specific trigger. It is up to you to decide what you like most (if any)
